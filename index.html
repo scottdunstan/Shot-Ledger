@@ -125,6 +125,8 @@ h3{font-size:0.95rem;font-weight:700}
   padding:0.22rem 0.5rem;font-size:0.82rem;font-weight:600;border:none;
 }
 .shot-chip small{font-weight:400;opacity:0.85}
+.shot-chip.pen,.mini-chip.pen{box-shadow:0 0 0 2px var(--red)}
+.pen-badge{background:var(--red);color:#fff;border-radius:3px;padding:0 0.3rem;font-size:0.68rem;font-weight:800;letter-spacing:0.02em}
 .shot-chip .x{opacity:0.7;font-weight:700}
 .shot-chip:hover .x{opacity:1}
 .add-shot{
@@ -171,6 +173,17 @@ tr.clickable:hover td{background:var(--panel-2)}
 .chart-panel h3{margin-bottom:0.15rem}
 .chart-panel .hint{margin-bottom:0.6rem}
 .chart-wrap{position:relative;height:300px}
+.qavg-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:0.5rem;margin-bottom:1rem}
+.qavg{border-radius:var(--radius);padding:0.6rem 0.5rem;text-align:center}
+.qavg .v{font-size:1.5rem;font-weight:800;letter-spacing:-0.02em;line-height:1.1}
+.qavg .l{font-size:0.75rem;font-weight:700;margin-top:0.1rem;opacity:0.92}
+.qavg .t{font-size:0.66rem;font-weight:500;margin-top:0.15rem;opacity:0.85}
+@media (max-width:700px){
+  .qavg-grid{gap:0.35rem}
+  .qavg{padding:0.5rem 0.25rem}
+  .qavg .v{font-size:1.2rem}
+  .qavg .l{font-size:0.68rem}
+}
 .callouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:0.75rem;margin-bottom:1rem}
 .callout{border-radius:var(--radius);padding:0.8rem 0.95rem;border:1px solid var(--line)}
 .callout.strength{background:#E7EFE4}
@@ -191,6 +204,9 @@ tr.clickable:hover td{background:var(--panel-2)}
 .par-grid input{padding:0.3rem 0.2rem;text-align:center;width:100%}
 .par-total{font-weight:700;margin-top:0.4rem}
 
+.lookup-hit{display:flex;justify-content:space-between;gap:0.6rem;padding:0.6rem 0;border-bottom:1px dotted var(--line-soft);align-items:center}
+.lookup-hit:last-child{border-bottom:none}
+.type-badge{display:inline-block;background:var(--green-wash);color:var(--green-deep);border-radius:999px;padding:0.08rem 0.6rem;font-size:0.75rem;font-weight:700;vertical-align:middle}
 .empty{
   border:1px dashed var(--line);border-radius:var(--radius);padding:2rem 1rem;
   text-align:center;color:var(--muted);
@@ -283,14 +299,24 @@ const TYPES=[
   {id:'putt',label:'Putt'},
 ];
 const TMAP=Object.fromEntries(TYPES.map(t=>[t.id,t]));
+const TPLURAL={tee:'tee shots',approach:'approaches',recovery:'recoveries',pitch:'pitches',bunker:'bunker shots',chip:'chips',putt:'putts'};
 const REASONS=[
   {id:'contact',label:'Contact'},
   {id:'management',label:'Course management'},
   {id:'direction',label:'Direction'},
   {id:'flight',label:'Flight'},
+  {id:'length',label:'Length'},
 ];
 const RMAP=Object.fromEntries(REASONS.map(r=>[r.id,r]));
+const CLUBS=[
+  {id:'driver',label:'Driver'},
+  {id:'wood',label:'Wood'},
+  {id:'long-iron',label:'Long Iron'},
+  {id:'short-iron',label:'Short Iron'},
+];
+const CMAP=Object.fromEntries(CLUBS.map(c=>[c.id,c]));
 const CONDITIONS=['Calm','Windy','Rainy','Cold','Hot','Firm','Soft / wet'];
+const COURSE_TYPES=['Links','Parkland','Heathland','Moorland','Woodland','Coastal','Desert','Mountain','Resort','Municipal','Other'];
 const STORE_KEY='shotledger.v1';
 const DRAFT_KEY='shotledger.draft.v1';
 
@@ -301,6 +327,7 @@ function seedData(){
   const courses=[{
     id:'c-gainsborough',
     name:'Stoke by Nayland — Gainsborough',
+    type:'Parkland',
     tees:[{name:'White',pars:gbPars,si:gbSI,rating:70.8,slope:133}],
   }];
   // Example round, 12 Sep 2026, 79 (+8)
@@ -439,6 +466,27 @@ function roundShots(r){ return r.holes.flatMap((h,i)=>h.shots.map(s=>({...s,hole
 function meanQ(shots){ return shots.length? shots.reduce((a,s)=>a+QMAP[s.quality].val,0)/shots.length : null; }
 function qIndex(shots){ const m=meanQ(shots); return m===null? null : Math.round((m+2)/4*100); }
 function toPar(r){ const p=teePar(teeOf(r)); return (p&&r.score)? r.score-p : null; }
+/* streaks: consecutive Good/Great (hot) and Bad/Terrible (cold); an Ok shot resets both */
+function streakInfo(r){
+  const shots=roundShots(r);
+  let hot=0,cold=0;
+  let bestHot={len:0,start:null,end:null},bestCold={len:0,start:null,end:null};
+  shots.forEach((sh,i)=>{
+    const v=QMAP[sh.quality].val;
+    if(v>0){hot++;cold=0;} else if(v<0){cold++;hot=0;} else {hot=0;cold=0;}
+    if(hot>bestHot.len) bestHot={len:hot,start:shots[i-hot+1].hole,end:sh.hole};
+    if(cold>bestCold.len) bestCold={len:cold,start:shots[i-cold+1].hole,end:sh.hole};
+  });
+  return {bestHot,bestCold,current:{hot,cold}};
+}
+function spanTxt(b){ return b.len? (b.start===b.end?'hole '+b.start:'holes '+b.start+'\u2013'+b.end):''; }
+function penCount(r){ return roundShots(r).filter(sh=>sh.penalty).length; }
+function chipMeta(sh){
+  const bits=[];
+  if(sh.club) bits.push(CMAP[sh.club].label);
+  bits.push(...sh.reasons.map(x=>RMAP[x].label.replace('Course management','Mgmt')));
+  return bits.join(', ');
+}
 function differential(r){
   const t=teeOf(r);
   if(!t||!t.rating||!t.slope||!r.score) return null;
@@ -474,7 +522,7 @@ function render(){
 }
 
 /* ================= round entry ================= */
-let draft=null, openBuilder=null, builderSel={quality:null,type:null,reasons:[]};
+let draft=null, openBuilder=null, builderSel={quality:null,type:null,reasons:[],club:null,penalty:false};
 try{ draft=JSON.parse(localStorage.getItem(DRAFT_KEY)); }catch(e){ draft=null; }
 function newDraft(){
   return {id:null,date:new Date().toISOString().slice(0,10),
@@ -534,6 +582,11 @@ function entrySummaryText(par,qi){
   if(par) bits.push('Par '+par);
   if(draft.score&&par) bits.push('<span class="'+(draft.score-par>0?'topar-pos':'topar-neg')+'">'+fmtToPar(draft.score-par)+'</span>');
   bits.push((qi===null?'—':qi)+' quality');
+  const pens=penCount(draft);
+  if(pens) bits.push('<span style="color:var(--red)">'+pens+' pen</span>');
+  const st=streakInfo(draft);
+  if(st.current.hot>=2) bits.push('<span style="color:var(--q-great)">'+st.current.hot+' good+ in a row</span>');
+  else if(st.current.cold>=2) bits.push('<span style="color:var(--q-bad)">'+st.current.cold+' bad in a row</span>');
   return bits.join(' &nbsp;·&nbsp; ');
 }
 function updateEntrySummary(){
@@ -560,9 +613,10 @@ function holeStrip(h,i,tee){
       <div class="hole-par">${par?'Par '+par:''}${si?'<br>SI '+si:''}</div>
       <div class="hole-shots">
         ${h.shots.map((s,j)=>`
-          <button class="shot-chip q-${s.quality}" title="Remove this shot" onclick="removeShot(${i},${j})">
+          <button class="shot-chip q-${s.quality} ${s.penalty?'pen':''}" title="Remove this shot" onclick="removeShot(${i},${j})">
             ${TMAP[s.type].label}
-            ${s.reasons.length?`<small>${s.reasons.map(r=>RMAP[r].label.replace('Course management','Mgmt')).join(', ')}</small>`:''}
+            ${chipMeta(s)?`<small>${chipMeta(s)}</small>`:''}
+            ${s.penalty?'<span class="pen-badge">PEN</span>':''}
             <span class="x">×</span>
           </button>`).join('')}
         <button class="add-shot" onclick="toggleBuilder(${i})">${openBuilder===i?'Close':'+ Shot'}</button>
@@ -579,21 +633,26 @@ function builderHTML(i){
     <div class="builder-row"><span class="seg-label">Shot</span><div class="seg">
       ${TYPES.map(t=>`<button class="${builderSel.type===t.id?'sel':''}" onclick="bSel('type','${t.id}')">${t.label}</button>`).join('')}
     </div></div>
+    <div class="builder-row"><span class="seg-label">Club</span><div class="seg">
+      ${CLUBS.map(c=>`<button class="${builderSel.club===c.id?'sel':''}" onclick="bClub('${c.id}')">${c.label}</button>`).join('')}
+    </div></div>
     <div class="builder-row"><span class="seg-label">Because of</span><div class="seg">
       ${REASONS.map(r=>`<button class="${builderSel.reasons.includes(r.id)?'sel':''}" onclick="bReason('${r.id}')">${r.label}</button>`).join('')}
+      <button style="${builderSel.penalty?'background:var(--red);border-color:var(--red);color:#fff;font-weight:700':'color:var(--red)'}" onclick="builderSel.penalty=!builderSel.penalty;render()">Penalty</button>
     </div></div>
     <div class="builder-row">
       <button class="btn small" onclick="addShot(${i})">Add shot to hole ${i+1}</button>
-      <span class="hint">Reasons are optional — tag what made the shot good or bad.</span>
+      <span class="hint">Club, reasons and penalty are optional.</span>
     </div>
   </div>`;
 }
 function toggleBuilder(i){
   openBuilder=openBuilder===i? null:i;
-  builderSel={quality:null,type:null,reasons:[]};
+  builderSel={quality:null,type:null,reasons:[],club:null,penalty:false};
   render();
 }
 function bSel(k,v){ builderSel[k]=v; render(); }
+function bClub(c){ builderSel.club=builderSel.club===c? null:c; render(); }
 function bReason(r){
   const i=builderSel.reasons.indexOf(r);
   if(i>=0) builderSel.reasons.splice(i,1); else builderSel.reasons.push(r);
@@ -601,8 +660,9 @@ function bReason(r){
 }
 function addShot(i){
   if(!builderSel.quality||!builderSel.type){ alert('Pick a quality and a shot type first.'); return; }
-  draft.holes[i].shots.push({type:builderSel.type,quality:builderSel.quality,reasons:[...builderSel.reasons]});
-  builderSel={quality:null,type:null,reasons:[]};
+  draft.holes[i].shots.push({type:builderSel.type,quality:builderSel.quality,reasons:[...builderSel.reasons],
+    club:builderSel.club||undefined,penalty:builderSel.penalty||undefined});
+  builderSel={quality:null,type:null,reasons:[],club:null,penalty:false};
   saveDraft(); render();
 }
 function removeShot(i,j){ draft.holes[i].shots.splice(j,1); saveDraft(); render(); }
@@ -635,10 +695,11 @@ function renderRounds(main){
   main.innerHTML=`<h2>Rounds <span class="hint">(${rounds.length})</span></h2>
   <div class="panel rounds-table" style="padding:0.25rem 0.5rem;overflow-x:auto">
   <table><thead><tr>
-    <th>Date</th><th>Course</th><th>Tees</th><th>Score</th><th>Par</th><th>+/−</th><th>Quality</th><th>Shots</th><th>Conditions</th><th></th>
+    <th>Date</th><th>Course</th><th>Tees</th><th>Score</th><th>Par</th><th>+/−</th><th>Quality</th><th>Shots</th><th>Streaks +/−</th><th>Pen</th><th>Conditions</th><th></th>
   </tr></thead><tbody>
   ${rounds.map(r=>{
     const shots=roundShots(r), qi=qIndex(shots), tp=toPar(r), par=teePar(teeOf(r));
+    const st=streakInfo(r);
     const c=courseById(r.courseId);
     return `<tr class="clickable" onclick="expandedRound=expandedRound==='${r.id}'?null:'${r.id}';render()">
       <td>${fmtDate(r.date)}</td>
@@ -649,19 +710,22 @@ function renderRounds(main){
       <td class="${tp>0?'topar-pos':(tp!==null?'topar-neg':'')}">${fmtToPar(tp)}</td>
       <td><b>${qi===null?'—':qi}</b></td>
       <td>${shots.length}</td>
+      <td><span style="color:var(--q-great);font-weight:700">${st.bestHot.len}</span> / <span style="color:var(--q-bad);font-weight:700">${st.bestCold.len}</span></td>
+      <td>${penCount(r)?'<span style="color:var(--red);font-weight:700">'+penCount(r)+'</span>':'0'}</td>
       <td class="hint">${r.conditions.join(', ')||'—'}</td>
       <td onclick="event.stopPropagation()">
         <button class="btn small secondary" onclick="editRound('${r.id}')">Edit</button>
         <button class="btn small danger" onclick="deleteRound('${r.id}')">Delete</button>
       </td>
     </tr>
-    ${expandedRound===r.id?`<tr><td colspan="10" class="round-detail">${roundDetail(r)}</td></tr>`:''}`;
+    ${expandedRound===r.id?`<tr><td colspan="12" class="round-detail">${roundDetail(r)}</td></tr>`:''}`;
   }).join('')}
   </tbody></table></div>
 
   <div class="round-cards">
   ${rounds.map(r=>{
     const shots=roundShots(r), qi=qIndex(shots), tp=toPar(r), par=teePar(teeOf(r));
+    const st=streakInfo(r);
     const c=courseById(r.courseId);
     return `<div class="round-card">
       <div class="rc-top" onclick="expandedRound=expandedRound==='${r.id}'?null:'${r.id}';render()">
@@ -675,6 +739,9 @@ function renderRounds(main){
         <span><b>${r.score||'—'}</b><small>score</small></span>
         <span><b>${qi===null?'—':qi}</b><small>quality</small></span>
         <span><b>${shots.length}</b><small>shots</small></span>
+        <span><b style="color:var(--q-great)">${st.bestHot.len}</b><small>hot streak</small></span>
+        <span><b style="color:var(--q-bad)">${st.bestCold.len}</b><small>cold streak</small></span>
+        <span><b style="color:var(--red)">${penCount(r)}</b><small>penalties</small></span>
       </div>
       ${expandedRound===r.id?`<div class="round-detail" style="margin:0.4rem -0.9rem -0.8rem;border-radius:0 0 var(--radius) var(--radius)">${roundDetail(r)}</div>
       <div class="rc-actions" style="margin-top:0.9rem">
@@ -686,21 +753,33 @@ function renderRounds(main){
   </div>
   <p class="hint">Quality is each round's shots averaged onto a 0–100 scale (all Terrible = 0, all Great = 100, all Ok = 50). Click a row to see the hole-by-hole card.</p>`;
 }
+function streakLine(r){
+  const st=streakInfo(r);
+  if(!st.bestHot.len&&!st.bestCold.len) return '';
+  const bits=[];
+  if(st.bestHot.len) bits.push('<span style="color:var(--q-great)"><b>'+st.bestHot.len+'</b> good-or-better in a row ('+spanTxt(st.bestHot)+')</span>');
+  if(st.bestCold.len) bits.push('<span style="color:var(--q-bad)"><b>'+st.bestCold.len+'</b> bad-or-worse in a row ('+spanTxt(st.bestCold)+')</span>');
+  const pens=penCount(r);
+  if(pens) bits.push('<span style="color:var(--red)"><b>'+pens+'</b> penalt'+(pens===1?'y':'ies')+'</span>');
+  return '<p style="margin-top:0.5rem;font-size:0.85rem">Streaks: '+bits.join(' &nbsp;·&nbsp; ')+'</p>';
+}
 function roundDetail(r){
   const tee=teeOf(r);
   const diff=differential(r);
   return `${r.holes.map((h,i)=>h.shots.length?`
     <div class="hole-line"><b>${i+1}</b>${tee?`<span class="hint">P${tee.pars[i]}</span>`:''}
-      ${h.shots.map(s=>`<span class="mini-chip q-${s.quality}">${TMAP[s.type].label}${s.reasons.length?' · '+s.reasons.map(x=>RMAP[x].label.replace('Course management','Mgmt')).join(', '):''}</span>`).join('')}
+      ${h.shots.map(s=>`<span class="mini-chip q-${s.quality} ${s.penalty?'pen':''}">${TMAP[s.type].label}${chipMeta(s)?' · '+chipMeta(s):''}${s.penalty?' · PEN':''}</span>`).join('')}
     </div>`:'').join('')}
+  ${streakLine(r)}
   ${diff!==null?`<p class="hint" style="margin-top:0.5rem">Handicap differential vs rating/slope: <b>${diff}</b></p>`:''}`;
 }
 /* ================= insights ================= */
-let insFilter={course:'all',cond:'all',range:'all'};
+let insFilter={course:'all',cond:'all',range:'all',ctype:'all'};
 function filteredRounds(){
   let rs=sortedRounds();
   if(insFilter.course!=='all') rs=rs.filter(r=>r.courseId===insFilter.course);
   if(insFilter.cond!=='all') rs=rs.filter(r=>r.conditions.includes(insFilter.cond));
+  if(insFilter.ctype!=='all') rs=rs.filter(r=>{const c=courseById(r.courseId);return c&&c.type===insFilter.ctype;});
   if(insFilter.range==='5') rs=rs.slice(-5);
   if(insFilter.range==='10') rs=rs.slice(-10);
   if(insFilter.range==='year') rs=rs.filter(r=>r.date>=new Date().getFullYear()+'-01-01');
@@ -729,6 +808,24 @@ function renderInsights(main){
   const poor=shots.filter(s=>QMAP[s.quality].val<0);
   const faultCounts=REASONS.map(r=>({r,n:poor.filter(s=>s.reasons.includes(r.id)).length}));
   const topFault=[...faultCounts].sort((a,b)=>b.n-a.n)[0];
+  // penalties
+  const penShots=shots.filter(x=>x.penalty);
+  const pensPerRound=Math.round(penShots.length/rs.length*10)/10;
+  let penLeader=null;
+  if(penShots.length){
+    const byT={};
+    penShots.forEach(x=>{const k=x.type+(x.club?'|'+x.club:''); byT[k]=(byT[k]||0)+1;});
+    const top=Object.entries(byT).sort((a,b)=>b[1]-a[1])[0];
+    const [t,c]=top[0].split('|');
+    penLeader={label:TMAP[t].label+(c?' ('+CMAP[c].label+')':''),n:top[1]};
+  }
+  // best streaks across the filtered rounds
+  let allHot=null,allCold=null;
+  rs.forEach(r=>{
+    const st=streakInfo(r);
+    if(st.bestHot.len&&(!allHot||st.bestHot.len>allHot.len)) allHot={...st.bestHot,round:r};
+    if(st.bestCold.len&&(!allCold||st.bestCold.len>allCold.len)) allCold={...st.bestCold,round:r};
+  });
 
   main.innerHTML=`
   <h2>Insights</h2>
@@ -750,6 +847,11 @@ function renderInsights(main){
         <option value="all">Any</option>
         ${CONDITIONS.map(c=>`<option ${insFilter.cond===c?'selected':''}>${c}</option>`).join('')}
       </select></div>
+    <div class="field"><label>Course type</label>
+      <select onchange="insFilter.ctype=this.value;render()">
+        <option value="all">Any</option>
+        ${COURSE_TYPES.map(t=>`<option ${insFilter.ctype===t?'selected':''}>${t}</option>`).join('')}
+      </select></div>
   </div>
 
   <div class="stat-grid">
@@ -757,30 +859,72 @@ function renderInsights(main){
     <div class="stat"><div class="v">${shots.length}</div><div class="l">shots graded</div></div>
     <div class="stat"><div class="v">${qi}</div><div class="l">quality index (0–100)</div></div>
     <div class="stat"><div class="v ${avgToPar>0?'topar-pos':''}">${avgToPar===null?'—':fmtToPar(Math.round(avgToPar*10)/10)}</div><div class="l">average vs par</div></div>
+    <div class="stat"><div class="v" style="color:var(--q-great)">${allHot?allHot.len:'—'}</div><div class="l">longest hot streak</div></div>
+    <div class="stat"><div class="v" style="color:var(--q-bad)">${allCold?allCold.len:'—'}</div><div class="l">longest cold streak</div></div>
+    <div class="stat"><div class="v" style="color:var(--red)">${penShots.length}</div><div class="l">penalties (${pensPerRound}/round)</div></div>
+  </div>
+
+  <p class="hint" style="margin-bottom:0.35rem">Average shots per round</p>
+  <div class="qavg-grid">
+    ${QUALITIES.map(q=>{
+      const qs=shots.filter(x=>x.quality===q.id);
+      const avg=Math.round(qs.length/rs.length*10)/10;
+      let tag='';
+      if(qs.length){
+        const byT={};
+        qs.forEach(x=>{byT[x.type]=(byT[x.type]||0)+1;});
+        const [topId,topN]=Object.entries(byT).sort((a,b)=>b[1]-a[1])[0];
+        tag='mostly '+TPLURAL[topId]+' ('+Math.round(topN/qs.length*100)+'%)';
+      }
+      return `<div class="qavg q-${q.id}"><div class="v">${avg}</div><div class="l">${q.label}</div>${tag?`<div class="t">${tag}</div>`:''}</div>`;
+    }).join('')}
   </div>
 
   <div class="callouts">
     ${best?`<div class="callout strength"><b>Strongest: ${best.t.label}</b>Averaging ${qLabelFor(best.mean)} across ${best.n} shots — keep doing what you're doing.</div>`:''}
     ${worst&&worst!==best?`<div class="callout weakness"><b>Needs work: ${worst.t.label}</b>Averaging ${qLabelFor(worst.mean)} across ${worst.n} shots — your biggest scoring leak.</div>`:''}
     ${topFault&&topFault.n?`<div class="callout weakness"><b>Most common fault: ${topFault.r.label}</b>Tagged on ${topFault.n} of your ${poor.length} poor shots (${Math.round(topFault.n/poor.length*100)}%). Worth a lesson or range session on this.</div>`:''}
+    ${allHot?`<div class="callout strength"><b>Best run: ${allHot.len} good-or-better shots</b>${fmtDate(allHot.round.date)}, ${spanTxt(allHot)} — that's the game to bottle.</div>`:''}
+    ${allCold&&allCold.len>=3?`<div class="callout weakness"><b>Worst slide: ${allCold.len} bad-or-worse shots</b>${fmtDate(allCold.round.date)}, ${spanTxt(allCold)}. Spotting a slide early and resetting is worth real strokes.</div>`:''}
+    ${penLeader?`<div class="callout weakness"><b>Penalty source: ${penLeader.label}</b>${penLeader.n} of your ${penShots.length} penalties came from this shot — the quickest strokes to win back.</div>`:''}
   </div>
 
   <div class="chart-panel"><h3>Shot quality by shot type</h3>
     <p class="hint">Every shot you've graded, stacked by quality. Long orange/red bars show where strokes are leaking.</p>
     <div class="chart-wrap"><canvas id="ch-type"></canvas></div></div>
+  <div class="chart-panel"><h3>Shot quality by club</h3>
+    <p class="hint">Shots you tagged with a club — is the driver really the problem, or is it the long irons?</p>
+    <div id="club-wrap" class="chart-wrap"><canvas id="ch-club"></canvas></div></div>
+  <div class="chart-panel"><h3>Penalties</h3>
+    <p class="hint">Penalty shots by where they came from, split by round.</p>
+    <div id="pen-wrap" class="chart-wrap"><canvas id="ch-pen"></canvas></div></div>
   <div class="chart-panel"><h3>What's behind your shots</h3>
     <p class="hint">Reasons you tagged, split between poor shots (Bad/Terrible) and strong shots (Good/Great).</p>
     <div class="chart-wrap"><canvas id="ch-reason"></canvas></div></div>
+  <div class="chart-panel"><h3>Shot mix per round</h3>
+    <p class="hint">How many Great, Good, Ok, Bad and Terrible shots you hit in each round. Watch the green share grow and the orange/red share shrink.</p>
+    <div class="chart-wrap"><canvas id="ch-qmix"></canvas></div></div>
+  <div class="chart-panel"><h3>Streaks per round</h3>
+    <p class="hint">Longest run of Good/Great shots (up, green) and of Bad/Terrible shots (down, orange) in each round. An Ok shot ends either run.</p>
+    <div class="chart-wrap"><canvas id="ch-streak"></canvas></div></div>
   <div class="chart-panel"><h3>Round by round</h3>
     <p class="hint">Quality index (green, left axis) against score vs par (dark, right axis). If green climbs while the dark line falls, your self-assessment matches your scoring.</p>
     <div class="chart-wrap"><canvas id="ch-trend"></canvas></div></div>
+  <div class="chart-panel"><h3>How you play by course type</h3>
+    <p class="hint">Average quality index and score vs par on each type of course — links golf and parkland golf are different games.</p>
+    <div id="ctype-wrap" class="chart-wrap"><canvas id="ch-ctype"></canvas></div></div>
   <div class="chart-panel"><h3>How conditions affect you</h3>
     <p class="hint">Average quality index and score vs par for rounds tagged with each condition.</p>
     <div id="cond-wrap" class="chart-wrap"><canvas id="ch-cond"></canvas></div></div>`;
 
   drawTypeChart(shots);
+  drawClubChart(shots);
+  drawPenChart(rs);
   drawReasonChart(shots);
+  drawQmixChart(rs);
+  drawStreakChart(rs);
   drawTrendChart(rs);
+  drawCtypeChart();
   drawCondChart();
 }
 function qLabelFor(mean){
@@ -824,6 +968,85 @@ function drawReasonChart(shots){
     options:baseOpts({scales:{x:{ticks:{font:chartFont}},y:{ticks:{font:chartFont,precision:0},beginAtZero:true}}})
   }));
 }
+function drawClubChart(shots){
+  const used=CLUBS.filter(c=>shots.some(x=>x.club===c.id));
+  const wrap=document.getElementById('club-wrap');
+  if(!used.length){
+    wrap.outerHTML='<div class="empty">Tag the club (Driver, Wood, Long Iron, Short Iron) when adding shots and this comparison will build up.</div>';
+    return;
+  }
+  charts.push(new Chart(document.getElementById('ch-club'),{
+    type:'bar',
+    data:{labels:used.map(c=>c.label),datasets:QUALITIES.map(q=>({
+      label:q.label,
+      data:used.map(c=>shots.filter(x=>x.club===c.id&&x.quality===q.id).length),
+      backgroundColor:QCOLORS[q.id],
+    }))},
+    options:baseOpts({indexAxis:'y',
+      scales:{x:{stacked:true,ticks:{font:chartFont,precision:0}},y:{stacked:true,ticks:{font:chartFont}}}})
+  }));
+}
+function drawPenChart(rs){
+  const sources={};
+  rs.forEach(r=>roundShots(r).forEach(x=>{
+    if(!x.penalty) return;
+    const k=TMAP[x.type].label+(x.club?' · '+CMAP[x.club].label:'');
+    sources[k]=(sources[k]||0)+1;
+  }));
+  const wrap=document.getElementById('pen-wrap');
+  const entries=Object.entries(sources).sort((a,b)=>b[1]-a[1]);
+  if(!entries.length){
+    wrap.outerHTML='<div class="empty">No penalties logged — long may it continue. Tag a shot with Penalty when it costs you a drop.</div>';
+    return;
+  }
+  charts.push(new Chart(document.getElementById('ch-pen'),{
+    type:'bar',
+    data:{labels:entries.map(e=>e[0]),datasets:[
+      {label:'Penalties',data:entries.map(e=>e[1]),backgroundColor:'#A93B2A'},
+    ]},
+    options:baseOpts({indexAxis:'y',
+      plugins:{legend:{display:false}},
+      scales:{x:{ticks:{font:chartFont,precision:0},beginAtZero:true},y:{ticks:{font:chartFont}}}})
+  }));
+}
+function drawQmixChart(rs){
+  const labels=rs.map(r=>fmtDate(r.date));
+  charts.push(new Chart(document.getElementById('ch-qmix'),{
+    type:'bar',
+    data:{labels,datasets:QUALITIES.map(q=>({
+      label:q.label,
+      data:rs.map(r=>roundShots(r).filter(sh=>sh.quality===q.id).length),
+      backgroundColor:QCOLORS[q.id],
+    }))},
+    options:baseOpts({
+      plugins:{legend:{labels:{font:chartFont,boxWidth:12}},
+        tooltip:{callbacks:{footer:items=>{
+          const total=items.reduce((a,i)=>a+i.parsed.y,0);
+          return items.length>1?'Total graded: '+total:'';
+        }}}},
+      scales:{x:{stacked:true,ticks:{font:chartFont}},
+        y:{stacked:true,beginAtZero:true,ticks:{font:chartFont,precision:0},
+           title:{display:true,text:'Shots',font:chartFont}}},
+    })
+  }));
+}
+function drawStreakChart(rs){
+  const labels=rs.map(r=>fmtDate(r.date));
+  const sts=rs.map(r=>streakInfo(r));
+  charts.push(new Chart(document.getElementById('ch-streak'),{
+    type:'bar',
+    data:{labels,datasets:[
+      {label:'Hot streak',data:sts.map(s=>s.bestHot.len),backgroundColor:'#2F6B45'},
+      {label:'Cold streak',data:sts.map(s=>-s.bestCold.len),backgroundColor:'#BF6B3F'},
+    ]},
+    options:baseOpts({
+      plugins:{legend:{labels:{font:chartFont,boxWidth:12}},
+        tooltip:{callbacks:{label:c=>c.dataset.label+': '+Math.abs(c.parsed.y)+' shots'}}},
+      scales:{x:{stacked:true,ticks:{font:chartFont}},
+        y:{stacked:true,ticks:{font:chartFont,precision:0,callback:v=>Math.abs(v)}}},
+    })
+  }));
+}
 function drawTrendChart(rs){
   const labels=rs.map(r=>fmtDate(r.date));
   const qis=rs.map(r=>qIndex(roundShots(r)));
@@ -838,6 +1061,40 @@ function drawTrendChart(rs){
       x:{ticks:{font:chartFont}},
       y:{min:0,max:100,title:{display:true,text:'Quality (0–100)',font:chartFont},ticks:{font:chartFont}},
       y2:{position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'Over/under par',font:chartFont},ticks:{font:chartFont}},
+    }})
+  }));
+}
+function drawCtypeChart(){
+  // uses rounds matching course/range filters, ignoring the ctype filter itself
+  let rs=sortedRounds();
+  if(insFilter.course!=='all') rs=rs.filter(r=>r.courseId===insFilter.course);
+  if(insFilter.range==='5') rs=rs.slice(-5);
+  if(insFilter.range==='10') rs=rs.slice(-10);
+  if(insFilter.range==='year') rs=rs.filter(r=>r.date>=new Date().getFullYear()+'-01-01');
+  const rows=COURSE_TYPES.map(t=>{
+    const sub=rs.filter(r=>{const c=courseById(r.courseId);return c&&c.type===t;});
+    if(!sub.length) return null;
+    const qis=sub.map(r=>qIndex(roundShots(r))).filter(v=>v!==null);
+    const tps=sub.map(r=>toPar(r)).filter(v=>v!==null);
+    return {t,n:sub.length,
+      qi:qis.length? Math.round(qis.reduce((a,b)=>a+b,0)/qis.length):null,
+      tp:tps.length? Math.round(tps.reduce((a,b)=>a+b,0)/tps.length*10)/10:null};
+  }).filter(Boolean);
+  const wrap=document.getElementById('ctype-wrap');
+  if(rows.length<1){
+    wrap.outerHTML='<div class="empty">Give each course a type (links, parkland, heathland…) on the Courses tab and this comparison will build up.</div>';
+    return;
+  }
+  charts.push(new Chart(document.getElementById('ch-ctype'),{
+    type:'bar',
+    data:{labels:rows.map(r=>r.t+' ('+r.n+')'),datasets:[
+      {label:'Avg quality index',data:rows.map(r=>r.qi),backgroundColor:'#2F6B45',yAxisID:'y'},
+      {label:'Avg score vs par',data:rows.map(r=>r.tp),backgroundColor:'#1C2A21',yAxisID:'y2'},
+    ]},
+    options:baseOpts({scales:{
+      x:{ticks:{font:chartFont}},
+      y:{min:0,max:100,title:{display:true,text:'Quality',font:chartFont},ticks:{font:chartFont}},
+      y2:{position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'vs par',font:chartFont},ticks:{font:chartFont}},
     }})
   }));
 }
@@ -874,9 +1131,85 @@ function drawCondChart(){
 }
 
 /* ================= courses ================= */
-let courseEdit=null;
+let courseEdit=null, lookupResults=[];
+async function courseLookup(){
+  const q=document.getElementById('lookup-q').value.trim();
+  if(!q) return;
+  const box=document.getElementById('lookup-results');
+  box.innerHTML='<p class="hint" style="margin-top:0.6rem">Searching OpenStreetMap…</p>';
+  try{
+    const url='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=8&q='+encodeURIComponent(/golf/i.test(q)? q : q+' golf');
+    const res=await fetch(url,{headers:{'Accept':'application/json'}});
+    if(!res.ok) throw 0;
+    const results=await res.json();
+    results.sort((a,b)=>((b.type==='golf_course')?1:0)-((a.type==='golf_course')?1:0));
+    lookupResults=results;
+    if(!results.length){
+      box.innerHTML='<p class="hint" style="margin-top:0.6rem">Nothing found — try adding the town or country, or add the course manually below.</p>';
+      return;
+    }
+    box.innerHTML=results.map((r,i)=>`
+      <div class="lookup-hit">
+        <div><b>${esc(r.name||r.display_name.split(',')[0])}</b>${r.type==='golf_course'?' <span class="type-badge">golf course</span>':''}
+          <br><span class="hint">${esc(r.display_name)}</span></div>
+        <button class="btn small" onclick="useLookup(${i})">Use</button>
+      </div>`).join('');
+  }catch(e){
+    box.innerHTML='<p class="hint" style="margin-top:0.6rem">Couldn\'t reach OpenStreetMap — check your connection and try again, or add the course manually.</p>';
+  }
+}
+async function useLookup(i){
+  const r=lookupResults[i]; if(!r) return;
+  const box=document.getElementById('lookup-results');
+  box.innerHTML='<p class="hint" style="margin-top:0.6rem">Found it — checking whether the holes are mapped…</p>';
+  let holes=[];
+  try{ holes=await fetchOsmHoles(r); }catch(e){ holes=[]; }
+  const name=(r.name||r.display_name.split(',')[0]).trim();
+  courseEdit={id:null,name,type:'',tees:[blankTee('White')]};
+  let parsFilled=0,siFilled=0;
+  holes.forEach(h=>{
+    if(h.ref>=1&&h.ref<=18){
+      if(h.par){ courseEdit.tees[0].pars[h.ref-1]=h.par; parsFilled++; }
+      if(h.si){ courseEdit.tees[0].si[h.ref-1]=h.si; siFilled++; }
+    }
+  });
+  courseEdit.lookupNote= parsFilled
+    ? parsFilled+' of 18 hole pars'+(siFilled?' (and '+siFilled+' stroke indexes)':'')+' filled from OpenStreetMap — check them against the scorecard, pick a course type, and add rating & slope.'
+    : 'This course\'s individual holes aren\'t mapped in OpenStreetMap yet — the name is filled in; add par per hole from the scorecard.';
+  render(); window.scrollTo(0,0);
+}
+async function fetchOsmHoles(r){
+  const areaId= r.osm_type==='relation'? 3600000000 + +r.osm_id
+    : r.osm_type==='way'? 2400000000 + +r.osm_id : null;
+  let data=null;
+  if(areaId){
+    data=await overpass('[out:json][timeout:25];way["golf"="hole"](area:'+areaId+');out tags;');
+  }
+  if((!data||!data.elements||!data.elements.length)&&r.lat&&r.lon){
+    data=await overpass('[out:json][timeout:25];way["golf"="hole"](around:1500,'+r.lat+','+r.lon+');out tags;');
+  }
+  const seen={};
+  ((data&&data.elements)||[]).forEach(el=>{
+    const t=el.tags||{};
+    const ref=parseInt(t.ref,10), par=parseInt(t.par,10), si=parseInt(t.handicap,10);
+    if(!ref||ref<1||ref>18) return;
+    if(!seen[ref]) seen[ref]={ref,par:null,si:null};
+    if(par&&!seen[ref].par) seen[ref].par=par;
+    if(si&&!seen[ref].si) seen[ref].si=si;
+  });
+  return Object.values(seen);
+}
+async function overpass(q){
+  const res=await fetch('https://overpass-api.de/api/interpreter',{
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'data='+encodeURIComponent(q),
+  });
+  if(!res.ok) throw 0;
+  return res.json();
+}
 function startNewCourse(){
-  courseEdit={id:null,name:'',tees:[blankTee('White')]};
+  courseEdit={id:null,name:'',type:'',tees:[blankTee('White')]};
   render();
 }
 function blankTee(name){
@@ -885,11 +1218,21 @@ function blankTee(name){
 function renderCourses(main){
   main.innerHTML=`<h2>Courses</h2>
   ${courseEdit? courseForm() : `
-    <button class="btn" onclick="startNewCourse()" style="margin-bottom:1rem">+ Add a course</button>
+    <div class="panel">
+      <h3>Find a course</h3>
+      <p class="hint" style="margin:0.25rem 0 0.6rem">Searches OpenStreetMap — free, open data covering courses worldwide. Where the community has mapped the holes, par and stroke index fill in automatically; course rating and slope aren't in open data, so add those from the scorecard.</p>
+      <div class="form-row">
+        <div class="field" style="flex:1;min-width:220px"><label>Course name</label>
+          <input id="lookup-q" placeholder="e.g. Aldeburgh Golf Club" onkeydown="if(event.key==='Enter')courseLookup()"></div>
+        <button class="btn" onclick="courseLookup()">Search</button>
+      </div>
+      <div id="lookup-results"></div>
+    </div>
+    <button class="btn secondary" onclick="startNewCourse()" style="margin-bottom:1rem">+ Or add a course manually</button>
     ${state.courses.map(c=>`
       <div class="course-card">
         <header>
-          <h3>${esc(c.name)}</h3>
+          <h3>${esc(c.name)} ${c.type?`<span class="type-badge">${esc(c.type)}</span>`:''}</h3>
           <span>
             <button class="btn small secondary" onclick="editCourse('${c.id}')">Edit</button>
             <button class="btn small danger" onclick="deleteCourse('${c.id}')">Delete</button>
@@ -906,6 +1249,7 @@ function renderCourses(main){
 }
 function editCourse(id){
   courseEdit=JSON.parse(JSON.stringify(courseById(id)));
+  if(!courseEdit.type) courseEdit.type='';
   courseEdit.tees.forEach(t=>{ if(!t.si) t.si=Array(18).fill(''); });
   render();
 }
@@ -919,9 +1263,17 @@ function deleteCourse(id){
 }
 function courseForm(){
   return `<div class="panel">
-    <div class="field" style="max-width:420px"><label>Course name</label>
-      <input value="${esc(courseEdit.name)}" placeholder="e.g. Stoke by Nayland — Constable"
-        oninput="courseEdit.name=this.value"></div>
+    ${courseEdit.lookupNote?`<div class="notice">${esc(courseEdit.lookupNote)}</div>`:''}
+    <div class="form-row">
+      <div class="field" style="flex:1;min-width:220px;max-width:420px"><label>Course name</label>
+        <input value="${esc(courseEdit.name)}" placeholder="e.g. Stoke by Nayland — Constable"
+          oninput="courseEdit.name=this.value"></div>
+      <div class="field"><label>Course type</label>
+        <select onchange="courseEdit.type=this.value">
+          <option value="">— pick one —</option>
+          ${COURSE_TYPES.map(t=>`<option ${courseEdit.type===t?'selected':''}>${t}</option>`).join('')}
+        </select></div>
+    </div>
     ${courseEdit.tees.map((t,ti)=>`
       <div style="border-top:1px solid var(--line-soft);margin-top:1rem;padding-top:0.9rem">
         <div class="form-row">
@@ -964,6 +1316,7 @@ function saveCourse(){
   if(!courseEdit.name.trim()){ alert('Give the course a name.'); return; }
   if(courseEdit.tees.some(t=>!t.name.trim())){ alert('Every tee set needs a name (e.g. White).'); return; }
   const c={...courseEdit,id:courseEdit.id||uid('c'),name:courseEdit.name.trim()};
+  delete c.lookupNote;
   const ix=state.courses.findIndex(x=>x.id===c.id);
   if(ix>=0) state.courses[ix]=c; else state.courses.push(c);
   persist(); courseEdit=null;
