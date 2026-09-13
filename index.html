@@ -40,11 +40,12 @@ body{
 }
 button{font-family:inherit;cursor:pointer}
 input,select,textarea{font-family:inherit;font-size:0.95rem;color:var(--ink)}
-input,select{
+input,select,textarea{
   background:#fff;border:1px solid var(--line);border-radius:var(--radius);
   padding:0.45rem 0.6rem;
 }
-input:focus,select:focus,button:focus-visible{outline:2px solid var(--green);outline-offset:1px}
+textarea{resize:vertical;min-height:4.2rem;line-height:1.45;width:100%}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--green);outline-offset:1px}
 
 /* ---------- masthead ---------- */
 header{
@@ -162,6 +163,13 @@ tr.clickable:hover td{background:var(--panel-2)}
 .round-detail{background:var(--panel-2);padding:0.75rem 0.9rem}
 .round-detail .hole-line{display:flex;gap:0.4rem;align-items:baseline;padding:0.2rem 0;flex-wrap:wrap;border-bottom:1px dotted var(--line-soft)}
 .round-detail .hole-line b{width:1.6rem;color:var(--muted);font-size:0.8rem}
+.journal{
+  background:#FBF9EC;border-left:3px solid var(--green);border-radius:0 var(--radius) var(--radius) 0;
+  padding:0.6rem 0.85rem;margin-top:0.7rem;font-size:0.9rem;white-space:pre-wrap;
+}
+.journal .jl{font-size:0.72rem;font-weight:700;color:var(--muted);display:block;margin-bottom:0.2rem}
+.rc-journal{color:var(--muted);font-size:0.85rem;font-style:italic;margin-top:0.35rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pen-mark{color:var(--muted);font-size:0.8rem;margin-left:0.25rem}
 .mini-chip{display:inline-block;border-radius:3px;padding:0.08rem 0.4rem;font-size:0.76rem;font-weight:600}
 
 /* ---------- insights ---------- */
@@ -243,6 +251,7 @@ tr.clickable:hover td{background:var(--panel-2)}
   nav button{padding:0.6rem 0.15rem;font-size:0.84rem;text-align:center}
   main{padding:0.9rem 0.7rem 4.5rem}
   input,select{font-size:1rem;min-height:2.7rem}
+  textarea{font-size:1rem}
   .form-row{display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;align-items:end}
   .form-row .field input,.form-row .field select{width:100%}
   .field input[type=number]{width:100% !important}
@@ -566,6 +575,9 @@ function renderEntry(main){
       <div class="toggles">${CONDITIONS.map(c=>
         `<button class="${draft.conditions.includes(c)?'on':''}" onclick="toggleCond('${c}')">${c}</button>`).join('')}</div>
     </div>
+    <div class="field" style="margin-top:0.8rem"><label for="f-notes">Journal</label>
+      <textarea id="f-notes" rows="3" placeholder="How did it feel out there? What clicked, what didn't, what will you work on before the next round?"
+        oninput="draft.notes=this.value;saveDraft()">${esc(draft.notes||'')}</textarea></div>
   </div>
 
   <div class="hole-list">
@@ -702,7 +714,7 @@ function renderRounds(main){
     const st=streakInfo(r);
     const c=courseById(r.courseId);
     return `<tr class="clickable" onclick="expandedRound=expandedRound==='${r.id}'?null:'${r.id}';render()">
-      <td>${fmtDate(r.date)}</td>
+      <td>${fmtDate(r.date)}${r.notes?'<span class="pen-mark" title="Has a journal entry">✎</span>':''}</td>
       <td>${c?esc(c.name):'?'}</td>
       <td>${esc(r.teeName||'')}</td>
       <td><b>${r.score||'—'}</b></td>
@@ -735,6 +747,7 @@ function renderRounds(main){
       <div class="rc-course" onclick="expandedRound=expandedRound==='${r.id}'?null:'${r.id}';render()">
         ${c?esc(c.name):'?'} · ${esc(r.teeName||'')} tees${par?' · par '+par:''}${r.conditions.length?' · '+r.conditions.join(', '):''}
       </div>
+      ${r.notes&&expandedRound!==r.id?`<div class="rc-journal">“${esc(r.notes.length>90?r.notes.slice(0,90)+'…':r.notes)}”</div>`:''}
       <div class="rc-stats">
         <span><b>${r.score||'—'}</b><small>score</small></span>
         <span><b>${qi===null?'—':qi}</b><small>quality</small></span>
@@ -771,6 +784,7 @@ function roundDetail(r){
       ${h.shots.map(s=>`<span class="mini-chip q-${s.quality} ${s.penalty?'pen':''}">${TMAP[s.type].label}${chipMeta(s)?' · '+chipMeta(s):''}${s.penalty?' · PEN':''}</span>`).join('')}
     </div>`:'').join('')}
   ${streakLine(r)}
+  ${r.notes?`<div class="journal"><span class="jl">Journal — ${fmtDate(r.date)}</span>${esc(r.notes)}</div>`:''}
   ${diff!==null?`<p class="hint" style="margin-top:0.5rem">Handicap differential vs rating/slope: <b>${diff}</b></p>`:''}`;
 }
 /* ================= insights ================= */
