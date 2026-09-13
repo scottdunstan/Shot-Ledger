@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#17301F">
+<meta name="apple-mobile-web-app-title" content="Shot Ledger">
+<title>Shot Ledger — golf shot quality tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap');
+
+:root{
+  --paper:#ECEBE0;
+  --panel:#F9F8F1;
+  --panel-2:#F2F1E7;
+  --ink:#1C2A21;
+  --muted:#5F6D60;
+  --line:#D7D5C4;
+  --line-soft:#E3E1D2;
+  --green:#2F6B45;
+  --green-deep:#17301F;
+  --green-wash:#E3EAE2;
+  --red:#A93B2A;
+  --q-great:#1E7A46;
+  --q-good:#6FA25C;
+  --q-ok:#C6AD4F;
+  --q-bad:#BF6B3F;
+  --q-terrible:#A03D2E;
+  --radius:6px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px}
+body{
+  font-family:'Archivo',-apple-system,'Segoe UI',sans-serif;
+  background:var(--paper);
+  color:var(--ink);
+  line-height:1.45;
+  font-variant-numeric:tabular-nums;
+}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:0.95rem;color:var(--ink)}
+input,select{
+  background:#fff;border:1px solid var(--line);border-radius:var(--radius);
+  padding:0.45rem 0.6rem;
+}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--green);outline-offset:1px}
+
+/* ---------- masthead ---------- */
+header{
+  background:var(--green-deep);color:#EFECD9;
+  padding:1.1rem 1.25rem 0;
+}
+.mast{max-width:1060px;margin:0 auto}
+.mast-top{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:0.5rem}
+.mast h1{font-size:1.5rem;font-weight:800;letter-spacing:-0.02em}
+.mast h1 span{color:#9DBD8E;font-weight:500;font-size:1rem;margin-left:0.5rem;letter-spacing:0}
+.data-actions{display:flex;gap:0.5rem}
+.data-actions button{
+  background:transparent;color:#C9D6C0;border:1px solid #3C5A44;
+  border-radius:var(--radius);padding:0.3rem 0.7rem;font-size:0.8rem;
+}
+.data-actions button:hover{background:#24402D;color:#fff}
+nav{display:flex;gap:0.25rem;margin-top:0.9rem;max-width:1060px;margin-left:auto;margin-right:auto}
+nav button{
+  background:transparent;border:none;color:#A9BCA0;font-size:0.95rem;font-weight:600;
+  padding:0.55rem 0.9rem;border-radius:var(--radius) var(--radius) 0 0;
+}
+nav button:hover{color:#fff}
+nav button.active{background:var(--paper);color:var(--ink)}
+
+main{max-width:1060px;margin:0 auto;padding:1.25rem 1.25rem 4rem}
+
+/* ---------- shared ---------- */
+h2{font-size:1.15rem;font-weight:700;margin-bottom:0.75rem}
+h3{font-size:0.95rem;font-weight:700}
+.hint{color:var(--muted);font-size:0.85rem}
+.panel{
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  padding:1rem;margin-bottom:1rem;
+}
+.btn{
+  background:var(--green);color:#fff;border:none;border-radius:var(--radius);
+  padding:0.55rem 1rem;font-weight:600;font-size:0.95rem;
+}
+.btn:hover{background:#255738}
+.btn.secondary{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.btn.secondary:hover{background:var(--panel-2)}
+.btn.danger{background:#fff;color:var(--red);border:1px solid var(--line)}
+.btn.danger:hover{background:#F6E8E4}
+.btn.small{padding:0.3rem 0.7rem;font-size:0.82rem}
+.field{display:flex;flex-direction:column;gap:0.25rem}
+.field label{font-size:0.82rem;font-weight:600;color:var(--muted)}
+.form-row{display:flex;gap:0.9rem;flex-wrap:wrap;align-items:flex-end}
+.spacer{flex:1}
+
+/* quality colours */
+.q-great{background:var(--q-great);color:#fff}
+.q-good{background:var(--q-good);color:#fff}
+.q-ok{background:var(--q-ok);color:#2E2A14}
+.q-bad{background:var(--q-bad);color:#fff}
+.q-terrible{background:var(--q-terrible);color:#fff}
+
+/* condition toggles */
+.toggles{display:flex;gap:0.35rem;flex-wrap:wrap}
+.toggles button{
+  border:1px solid var(--line);background:#fff;border-radius:999px;
+  padding:0.28rem 0.75rem;font-size:0.85rem;color:var(--muted);
+}
+.toggles button.on{background:var(--green);border-color:var(--green);color:#fff}
+
+/* ---------- round entry: hole strips ---------- */
+.hole-list{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--panel)}
+.hole{border-bottom:1px solid var(--line-soft)}
+.hole:last-child{border-bottom:none}
+.hole-row{display:flex;align-items:center;gap:0.75rem;padding:0.55rem 0.75rem;flex-wrap:wrap}
+.hole-num{
+  width:2.1rem;height:2.1rem;border-radius:50%;background:var(--green-deep);color:#EFECD9;
+  display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;
+}
+.hole-par{font-size:0.78rem;color:var(--muted);width:3.4rem;flex-shrink:0;line-height:1.25}
+.hole-shots{display:flex;gap:0.35rem;flex-wrap:wrap;flex:1;min-width:200px}
+.shot-chip{
+  display:inline-flex;align-items:center;gap:0.35rem;border-radius:4px;
+  padding:0.22rem 0.5rem;font-size:0.82rem;font-weight:600;border:none;
+}
+.shot-chip small{font-weight:400;opacity:0.85}
+.shot-chip .x{opacity:0.7;font-weight:700}
+.shot-chip:hover .x{opacity:1}
+.add-shot{
+  border:1px dashed var(--line);background:transparent;color:var(--muted);
+  border-radius:4px;padding:0.22rem 0.6rem;font-size:0.82rem;
+}
+.add-shot:hover{border-color:var(--green);color:var(--green)}
+.builder{
+  background:var(--panel-2);border-top:1px solid var(--line-soft);
+  padding:0.7rem 0.75rem 0.8rem;display:flex;flex-direction:column;gap:0.55rem;
+}
+.builder .seg-label{font-size:0.72rem;font-weight:700;color:var(--muted);width:4.5rem;flex-shrink:0}
+.builder-row{display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap}
+.seg{display:flex;gap:0.3rem;flex-wrap:wrap}
+.seg button{
+  border:1px solid var(--line);background:#fff;border-radius:4px;
+  padding:0.3rem 0.65rem;font-size:0.84rem;color:var(--ink);
+}
+.seg button.sel-q{border-color:transparent;font-weight:700}
+.seg button.sel{background:var(--ink);border-color:var(--ink);color:#fff;font-weight:600}
+
+/* ---------- rounds table ---------- */
+table{width:100%;border-collapse:collapse;font-size:0.9rem}
+th{
+  text-align:left;font-size:0.75rem;color:var(--muted);font-weight:700;
+  border-bottom:2px solid var(--line);padding:0.4rem 0.55rem;
+}
+td{border-bottom:1px solid var(--line-soft);padding:0.5rem 0.55rem;vertical-align:middle}
+tr.clickable{cursor:pointer}
+tr.clickable:hover td{background:var(--panel-2)}
+.topar-pos{color:var(--red);font-weight:700}
+.topar-neg{color:var(--q-great);font-weight:700}
+.round-detail{background:var(--panel-2);padding:0.75rem 0.9rem}
+.round-detail .hole-line{display:flex;gap:0.4rem;align-items:baseline;padding:0.2rem 0;flex-wrap:wrap;border-bottom:1px dotted var(--line-soft)}
+.round-detail .hole-line b{width:1.6rem;color:var(--muted);font-size:0.8rem}
+.mini-chip{display:inline-block;border-radius:3px;padding:0.08rem 0.4rem;font-size:0.76rem;font-weight:600}
+
+/* ---------- insights ---------- */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0.75rem;margin-bottom:1rem}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:0.75rem 0.9rem}
+.stat .v{font-size:1.6rem;font-weight:800;letter-spacing:-0.02em;line-height:1.1}
+.stat .l{font-size:0.8rem;color:var(--muted);margin-top:0.15rem}
+.chart-panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:1rem;margin-bottom:1rem}
+.chart-panel h3{margin-bottom:0.15rem}
+.chart-panel .hint{margin-bottom:0.6rem}
+.chart-wrap{position:relative;height:300px}
+.callouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:0.75rem;margin-bottom:1rem}
+.callout{border-radius:var(--radius);padding:0.8rem 0.95rem;border:1px solid var(--line)}
+.callout.strength{background:#E7EFE4}
+.callout.weakness{background:#F4E7DF}
+.callout b{display:block;margin-bottom:0.15rem}
+.legend-row{display:flex;gap:0.7rem;flex-wrap:wrap;margin:0.4rem 0 0.6rem}
+.legend-row span{display:inline-flex;align-items:center;gap:0.3rem;font-size:0.78rem;color:var(--muted)}
+.legend-row i{width:11px;height:11px;border-radius:2px;display:inline-block}
+
+/* ---------- courses ---------- */
+.course-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:1rem;margin-bottom:0.9rem}
+.course-card header{all:unset;display:flex;justify-content:space-between;align-items:baseline;gap:0.5rem;flex-wrap:wrap}
+.course-card h3{font-size:1.05rem}
+.tee-line{display:flex;gap:1rem;flex-wrap:wrap;font-size:0.85rem;color:var(--muted);padding:0.3rem 0;border-bottom:1px dotted var(--line-soft)}
+.tee-line b{color:var(--ink)}
+.par-grid{display:grid;grid-template-columns:repeat(9,minmax(2.2rem,1fr));gap:0.3rem;margin-top:0.4rem}
+.par-grid .field label{font-size:0.68rem;text-align:center}
+.par-grid input{padding:0.3rem 0.2rem;text-align:center;width:100%}
+.par-total{font-weight:700;margin-top:0.4rem}
+
+.empty{
+  border:1px dashed var(--line);border-radius:var(--radius);padding:2rem 1rem;
+  text-align:center;color:var(--muted);
+}
+.notice{
+  background:#FBF6E3;border:1px solid #E4D9A8;border-radius:var(--radius);
+  padding:0.6rem 0.85rem;font-size:0.85rem;margin-bottom:1rem;
+}
+.sync-line{font-size:0.78rem;color:#9DBD8E;margin-top:0.35rem;min-height:1.1rem}
+.sync-line b{color:#EFECD9}
+
+.save-bar{
+  position:sticky;bottom:0;display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;
+  margin-top:1rem;padding:0.65rem 0 0.5rem;
+  background:linear-gradient(to bottom, rgba(236,235,224,0), var(--paper) 35%);
+}
+
+/* rounds as cards (mobile) */
+.round-cards{display:none}
+.round-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:0.8rem 0.9rem;margin-bottom:0.7rem}
+.rc-top{display:flex;justify-content:space-between;gap:0.5rem;align-items:baseline;flex-wrap:wrap}
+.rc-top .when{font-weight:700}
+.rc-course{color:var(--muted);font-size:0.86rem;margin-top:0.1rem}
+.rc-stats{display:flex;gap:1.1rem;margin:0.5rem 0 0.4rem;font-size:0.95rem;flex-wrap:wrap}
+.rc-stats b{font-size:1.15rem}
+.rc-stats span small{display:block;color:var(--muted);font-size:0.72rem;font-weight:600}
+.rc-actions{display:flex;gap:0.5rem;margin-top:0.5rem}
+
+@media (max-width:700px){
+  header{padding:0.85rem 0.85rem 0}
+  .mast h1{font-size:1.25rem}
+  .mast h1 span{display:none}
+  nav{display:grid;grid-template-columns:repeat(4,1fr);gap:0.2rem}
+  nav button{padding:0.6rem 0.15rem;font-size:0.84rem;text-align:center}
+  main{padding:0.9rem 0.7rem 4.5rem}
+  input,select{font-size:1rem;min-height:2.7rem}
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;align-items:end}
+  .form-row .field input,.form-row .field select{width:100%}
+  .field input[type=number]{width:100% !important}
+  .btn{min-height:2.8rem}
+  .btn.small{min-height:2.2rem}
+  .toggles button{padding:0.5rem 0.9rem;min-height:2.5rem;font-size:0.9rem}
+  .seg button{padding:0.55rem 0.75rem;min-height:2.6rem;font-size:0.92rem}
+  .add-shot{padding:0.45rem 0.85rem;min-height:2.4rem;font-size:0.88rem}
+  .shot-chip{padding:0.4rem 0.55rem;font-size:0.86rem}
+  .builder .seg-label{width:100%;margin-bottom:-0.2rem}
+  .hole-par{width:auto}
+  .chart-wrap{height:240px}
+  .rounds-table{display:none}
+  .round-cards{display:block}
+  .par-grid{grid-template-columns:repeat(6,1fr)}
+  .data-actions button{min-height:2.3rem}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="mast">
+    <div class="mast-top">
+      <h1>Shot Ledger<span>every shot, graded</span></h1>
+      <div class="data-actions">
+        <button onclick="exportData()">Download database</button>
+        <button onclick="document.getElementById('importFile').click()">Import</button>
+        <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+      </div>
+    </div>
+    <div class="sync-line" id="sync"></div>
+    <nav id="nav"></nav>
+  </div>
+</header>
+<main id="main"></main>
+<script>
+/* ================= constants ================= */
+const QUALITIES=[
+  {id:'great',label:'Great',val:2},
+  {id:'good',label:'Good',val:1},
+  {id:'ok',label:'Ok',val:0},
+  {id:'bad',label:'Bad',val:-1},
+  {id:'terrible',label:'Terrible',val:-2},
+];
+const QMAP=Object.fromEntries(QUALITIES.map(q=>[q.id,q]));
+const QCOLORS={great:'#1E7A46',good:'#6FA25C',ok:'#C6AD4F',bad:'#BF6B3F',terrible:'#A03D2E'};
+const TYPES=[
+  {id:'tee',label:'Tee shot'},
+  {id:'approach',label:'Approach'},
+  {id:'recovery',label:'Recovery'},
+  {id:'pitch',label:'Pitch'},
+  {id:'bunker',label:'Bunker'},
+  {id:'chip',label:'Chip'},
+  {id:'putt',label:'Putt'},
+];
+const TMAP=Object.fromEntries(TYPES.map(t=>[t.id,t]));
+const REASONS=[
+  {id:'contact',label:'Contact'},
+  {id:'management',label:'Course management'},
+  {id:'direction',label:'Direction'},
+  {id:'flight',label:'Flight'},
+];
+const RMAP=Object.fromEntries(REASONS.map(r=>[r.id,r]));
+const CONDITIONS=['Calm','Windy','Rainy','Cold','Hot','Firm','Soft / wet'];
+const STORE_KEY='shotledger.v1';
+const DRAFT_KEY='shotledger.draft.v1';
+
+/* ================= seed data ================= */
+function seedData(){
+  const gbPars=[4,5,3,4,5,4,3,4,3,4,3,4,4,5,4,5,4,3];
+  const gbSI=[9,5,17,1,13,3,15,7,11,2,4,18,6,16,10,12,14,8];
+  const courses=[{
+    id:'c-gainsborough',
+    name:'Stoke by Nayland — Gainsborough',
+    tees:[{name:'White',pars:gbPars,si:gbSI,rating:70.8,slope:133}],
+  }];
+  // Example round, 12 Sep 2026, 79 (+8)
+  const S=(t,q,r)=>({type:t,quality:q,reasons:r||[]});
+  const holes=[
+    [S('tee','ok',['contact']),S('approach','bad',['direction']),S('chip','good'),S('putt','good')],
+    [S('tee','ok',['contact']),S('recovery','ok'),S('approach','bad',['direction']),S('bunker','bad',['flight']),S('putt','ok')],
+    [S('tee','good',['contact','direction']),S('putt','good')],
+    [S('tee','bad',['direction']),S('recovery','good'),S('approach','good',['contact','flight','direction']),S('putt','ok')],
+    [S('tee','bad',['direction','contact']),S('approach','great',['contact','direction','flight']),S('chip','good'),S('putt','good')],
+    [S('tee','good',['contact','direction','flight']),S('approach','ok',['contact','management']),S('chip','ok'),S('putt','good')],
+    [S('tee','terrible',['contact']),S('putt','ok')],
+    [S('tee','ok',['management','direction']),S('bunker','good',['contact','management']),S('chip','bad',['direction']),S('putt','bad')],
+    [S('tee','ok',['contact','flight']),S('chip','good')],
+    [S('tee','good',['contact']),S('approach','great',['contact','flight','direction'])],
+    [S('tee','bad',['contact','direction']),S('bunker','good'),S('putt','bad')],
+    [S('tee','terrible',['contact']),S('recovery','bad',['management','contact','flight']),S('putt','bad')],
+    [S('tee','bad',['direction']),S('approach','good',['contact','management','flight']),S('putt','good')],
+    [S('tee','good',['contact']),S('approach','great',['contact','flight']),S('chip','bad',['contact','flight']),S('putt','ok')],
+    [S('tee','terrible',['contact','management','flight']),S('approach','good',['contact']),S('pitch','great'),S('putt','good')],
+    [S('tee','bad',['direction']),S('approach','great',['contact','flight','management']),S('chip','terrible',['contact']),S('putt','bad'),S('putt','bad')],
+    [S('tee','good',['contact']),S('pitch','terrible',['contact']),S('chip','good',['contact']),S('putt','great')],
+    [S('tee','bad',['direction','flight']),S('chip','bad',['contact']),S('putt','bad'),S('putt','good')],
+  ].map(shots=>({shots}));
+  const rounds=[{
+    id:'r-seed-1',date:'2026-09-12',courseId:'c-gainsborough',teeName:'White',
+    score:79,conditions:[],notes:'',holes,
+  }];
+  return {courses,rounds};
+}
+
+/* ================= state & storage ================= */
+let state;
+try{ state=JSON.parse(localStorage.getItem(STORE_KEY)); }catch(e){ state=null; }
+if(!state||!state.courses){ state=seedData(); persist(); }
+if(!state.deleted) state.deleted=[];
+function persist(){ try{ localStorage.setItem(STORE_KEY,JSON.stringify(state)); }catch(e){ console.error('Could not save',e); } }
+function uid(p){ return p+'-'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+
+function exportData(){
+  const db={app:'shot-ledger',exported:new Date().toISOString(),
+    courses:state.courses,rounds:state.rounds};
+  const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='database.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  setTimeout(()=>alert('database.json downloaded.\n\nCommit it to the data folder of your repo (replacing the old one) and every device stays in sync.'),300);
+}
+
+/* ---- repo database: data/database.json committed to Git ---- */
+let repoDB=null, repoTried=false;
+async function loadRepoDB(){
+  try{
+    const res=await fetch('data/database.json',{cache:'no-store'});
+    if(!res.ok) throw 0;
+    repoDB=await res.json();
+    mergeRepo(repoDB);
+  }catch(e){ repoDB=null; }
+  repoTried=true;
+  renderSync();
+}
+function mergeRepo(db){
+  let changed=false;
+  (db.courses||[]).forEach(c=>{
+    if(state.deleted.includes(c.id)) return;
+    if(!state.courses.some(x=>x.id===c.id)){ state.courses.push(c); changed=true; }
+  });
+  (db.rounds||[]).forEach(r=>{
+    if(state.deleted.includes(r.id)) return;
+    if(!state.rounds.some(x=>x.id===r.id)){ state.rounds.push(r); changed=true; }
+  });
+  // prune tombstones for ids the repo no longer has
+  const repoIds=new Set([...(db.courses||[]),...(db.rounds||[])].map(x=>x.id));
+  const before=state.deleted.length;
+  state.deleted=state.deleted.filter(id=>repoIds.has(id));
+  if(changed||before!==state.deleted.length) persist();
+  if(changed) render();
+}
+function unsyncedCount(){
+  if(!repoDB) return null;
+  const rIds=new Set((repoDB.rounds||[]).map(r=>r.id));
+  const cIds=new Set((repoDB.courses||[]).map(c=>c.id));
+  let n=0;
+  state.rounds.forEach(r=>{
+    if(!rIds.has(r.id)) n++;
+    else{ const o=(repoDB.rounds||[]).find(x=>x.id===r.id);
+      if(JSON.stringify(o)!==JSON.stringify(r)) n++; }
+  });
+  state.courses.forEach(c=>{
+    if(!cIds.has(c.id)) n++;
+    else{ const o=(repoDB.courses||[]).find(x=>x.id===c.id);
+      if(JSON.stringify(o)!==JSON.stringify(c)) n++; }
+  });
+  n+=state.deleted.length;
+  return n;
+}
+function renderSync(){
+  const el=document.getElementById('sync');
+  if(!el) return;
+  if(!repoTried){ el.textContent=''; return; }
+  if(!repoDB){
+    el.innerHTML='Repo database not found — data is on this device only. Use <b>Download database</b> and commit it to <b>data/database.json</b>.';
+    return;
+  }
+  const n=unsyncedCount();
+  el.innerHTML= n===0
+    ? 'In sync with the repo database ('+state.rounds.length+' rounds, '+state.courses.length+' courses).'
+    : '<b>'+n+'</b> change'+(n===1?'':'s')+' on this device not yet in the repo — tap <b>Download database</b>, then commit it to <b>data/database.json</b>.';
+}
+function importData(ev){
+  const f=ev.target.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{
+      const d=JSON.parse(rd.result);
+      if(!d.courses||!d.rounds) throw new Error('bad file');
+      state={courses:d.courses,rounds:d.rounds,deleted:state.deleted||[]};
+      persist(); render();
+      alert('Backup imported: '+d.rounds.length+' rounds, '+d.courses.length+' courses.');
+    }catch(e){ alert('That file is not a Shot Ledger backup.'); }
+  };
+  rd.readAsText(f);
+  ev.target.value='';
+}
+
+/* ================= helpers ================= */
+const courseById=id=>state.courses.find(c=>c.id===id);
+function teeOf(round){
+  const c=courseById(round.courseId);
+  return c? (c.tees.find(t=>t.name===round.teeName)||c.tees[0]) : null;
+}
+const teePar=tee=>tee? tee.pars.reduce((a,b)=>a+(+b||0),0) : null;
+function roundShots(r){ return r.holes.flatMap((h,i)=>h.shots.map(s=>({...s,hole:i+1}))); }
+function meanQ(shots){ return shots.length? shots.reduce((a,s)=>a+QMAP[s.quality].val,0)/shots.length : null; }
+function qIndex(shots){ const m=meanQ(shots); return m===null? null : Math.round((m+2)/4*100); }
+function toPar(r){ const p=teePar(teeOf(r)); return (p&&r.score)? r.score-p : null; }
+function differential(r){
+  const t=teeOf(r);
+  if(!t||!t.rating||!t.slope||!r.score) return null;
+  return Math.round((r.score-t.rating)*113/t.slope*10)/10;
+}
+function fmtToPar(n){ return n===null?'—':(n>0?'+'+n:(n===0?'E':''+n)); }
+function fmtDate(d){
+  const dt=new Date(d+'T12:00:00');
+  return dt.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+}
+function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function sortedRounds(){ return [...state.rounds].sort((a,b)=>a.date<b.date?-1:1); }
+/* ================= navigation ================= */
+const TABS=[
+  {id:'entry',label:'Enter round'},
+  {id:'rounds',label:'Rounds'},
+  {id:'insights',label:'Insights'},
+  {id:'courses',label:'Courses'},
+];
+let tab='entry';
+let charts=[];
+function setTab(t){ tab=t; render(); window.scrollTo(0,0); }
+function render(){
+  charts.forEach(c=>c.destroy()); charts=[];
+  document.getElementById('nav').innerHTML=TABS.map(t=>
+    `<button class="${t.id===tab?'active':''}" onclick="setTab('${t.id}')">${t.label}</button>`).join('');
+  const main=document.getElementById('main');
+  renderSync();
+  if(tab==='entry') renderEntry(main);
+  else if(tab==='rounds') renderRounds(main);
+  else if(tab==='insights') renderInsights(main);
+  else renderCourses(main);
+}
+
+/* ================= round entry ================= */
+let draft=null, openBuilder=null, builderSel={quality:null,type:null,reasons:[]};
+try{ draft=JSON.parse(localStorage.getItem(DRAFT_KEY)); }catch(e){ draft=null; }
+function newDraft(){
+  return {id:null,date:new Date().toISOString().slice(0,10),
+    courseId:state.courses[0]?state.courses[0].id:'',teeName:'',
+    score:'',conditions:[],notes:'',
+    holes:Array.from({length:18},()=>({shots:[]}))};
+}
+function saveDraft(){ try{ localStorage.setItem(DRAFT_KEY,JSON.stringify(draft)); }catch(e){} }
+function clearDraft(){ draft=null; openBuilder=null; localStorage.removeItem(DRAFT_KEY); }
+
+function renderEntry(main){
+  if(!draft) draft=newDraft();
+  const course=courseById(draft.courseId);
+  if(course&&!course.tees.some(t=>t.name===draft.teeName)) draft.teeName=course.tees[0]?course.tees[0].name:'';
+  const tee=course? course.tees.find(t=>t.name===draft.teeName):null;
+  const par=teePar(tee);
+  const shots=roundShots(draft);
+  const qi=qIndex(shots);
+  main.innerHTML=`
+  <h2>${draft.id?'Edit round':'Enter a round'}</h2>
+  <div class="panel">
+    <div class="form-row">
+      <div class="field"><label for="f-date">Date</label>
+        <input type="date" id="f-date" value="${draft.date}" onchange="draft.date=this.value;saveDraft()"></div>
+      <div class="field"><label for="f-course">Course</label>
+        <select id="f-course" onchange="entryCourse(this.value)">
+          ${state.courses.map(c=>`<option value="${c.id}" ${c.id===draft.courseId?'selected':''}>${esc(c.name)}</option>`).join('')}
+          <option value="__new__">+ Add a new course…</option>
+        </select></div>
+      <div class="field"><label for="f-tee">Tees</label>
+        <select id="f-tee" onchange="draft.teeName=this.value;saveDraft();render()">
+          ${course? course.tees.map(t=>`<option ${t.name===draft.teeName?'selected':''}>${esc(t.name)}</option>`).join(''):''}
+        </select></div>
+      <div class="field"><label for="f-score">Score</label>
+        <input type="number" id="f-score" min="18" max="180" style="width:5.5rem" value="${draft.score}"
+          oninput="draft.score=this.value?+this.value:'';saveDraft();updateEntrySummary()"></div>
+      <div class="field"><label>Card</label>
+        <div id="entry-summary" style="font-weight:700;padding:0.45rem 0">${entrySummaryText(par,qi)}</div></div>
+    </div>
+    <div class="field" style="margin-top:0.8rem"><label>Conditions</label>
+      <div class="toggles">${CONDITIONS.map(c=>
+        `<button class="${draft.conditions.includes(c)?'on':''}" onclick="toggleCond('${c}')">${c}</button>`).join('')}</div>
+    </div>
+  </div>
+
+  <div class="hole-list">
+    ${draft.holes.map((h,i)=>holeStrip(h,i,tee)).join('')}
+  </div>
+  <div class="save-bar">
+    <button class="btn" onclick="saveRound()">${draft.id?'Save changes':'Save round'}</button>
+    <button class="btn secondary" onclick="if(confirm('Discard this round entry?')){clearDraft();render()}">Discard</button>
+    <span class="hint">Kept as you type — safe to close mid-entry and come back.</span>
+  </div>`;
+}
+function entrySummaryText(par,qi){
+  const bits=[];
+  if(par) bits.push('Par '+par);
+  if(draft.score&&par) bits.push('<span class="'+(draft.score-par>0?'topar-pos':'topar-neg')+'">'+fmtToPar(draft.score-par)+'</span>');
+  bits.push((qi===null?'—':qi)+' quality');
+  return bits.join(' &nbsp;·&nbsp; ');
+}
+function updateEntrySummary(){
+  const tee=teeOf(draft);
+  document.getElementById('entry-summary').innerHTML=entrySummaryText(teePar(tee),qIndex(roundShots(draft)));
+}
+function entryCourse(v){
+  if(v==='__new__'){ setTab('courses'); startNewCourse(); return; }
+  draft.courseId=v;
+  const c=courseById(v);
+  draft.teeName=c&&c.tees[0]?c.tees[0].name:'';
+  saveDraft(); render();
+}
+function toggleCond(c){
+  const i=draft.conditions.indexOf(c);
+  if(i>=0) draft.conditions.splice(i,1); else draft.conditions.push(c);
+  saveDraft(); render();
+}
+function holeStrip(h,i,tee){
+  const par=tee? tee.pars[i]:null, si=tee&&tee.si? tee.si[i]:null;
+  return `<div class="hole">
+    <div class="hole-row">
+      <div class="hole-num">${i+1}</div>
+      <div class="hole-par">${par?'Par '+par:''}${si?'<br>SI '+si:''}</div>
+      <div class="hole-shots">
+        ${h.shots.map((s,j)=>`
+          <button class="shot-chip q-${s.quality}" title="Remove this shot" onclick="removeShot(${i},${j})">
+            ${TMAP[s.type].label}
+            ${s.reasons.length?`<small>${s.reasons.map(r=>RMAP[r].label.replace('Course management','Mgmt')).join(', ')}</small>`:''}
+            <span class="x">×</span>
+          </button>`).join('')}
+        <button class="add-shot" onclick="toggleBuilder(${i})">${openBuilder===i?'Close':'+ Shot'}</button>
+      </div>
+    </div>
+    ${openBuilder===i? builderHTML(i):''}
+  </div>`;
+}
+function builderHTML(i){
+  return `<div class="builder">
+    <div class="builder-row"><span class="seg-label">Quality</span><div class="seg">
+      ${QUALITIES.map(q=>`<button class="${builderSel.quality===q.id?'sel-q q-'+q.id:''}" onclick="bSel('quality','${q.id}')">${q.label}</button>`).join('')}
+    </div></div>
+    <div class="builder-row"><span class="seg-label">Shot</span><div class="seg">
+      ${TYPES.map(t=>`<button class="${builderSel.type===t.id?'sel':''}" onclick="bSel('type','${t.id}')">${t.label}</button>`).join('')}
+    </div></div>
+    <div class="builder-row"><span class="seg-label">Because of</span><div class="seg">
+      ${REASONS.map(r=>`<button class="${builderSel.reasons.includes(r.id)?'sel':''}" onclick="bReason('${r.id}')">${r.label}</button>`).join('')}
+    </div></div>
+    <div class="builder-row">
+      <button class="btn small" onclick="addShot(${i})">Add shot to hole ${i+1}</button>
+      <span class="hint">Reasons are optional — tag what made the shot good or bad.</span>
+    </div>
+  </div>`;
+}
+function toggleBuilder(i){
+  openBuilder=openBuilder===i? null:i;
+  builderSel={quality:null,type:null,reasons:[]};
+  render();
+}
+function bSel(k,v){ builderSel[k]=v; render(); }
+function bReason(r){
+  const i=builderSel.reasons.indexOf(r);
+  if(i>=0) builderSel.reasons.splice(i,1); else builderSel.reasons.push(r);
+  render();
+}
+function addShot(i){
+  if(!builderSel.quality||!builderSel.type){ alert('Pick a quality and a shot type first.'); return; }
+  draft.holes[i].shots.push({type:builderSel.type,quality:builderSel.quality,reasons:[...builderSel.reasons]});
+  builderSel={quality:null,type:null,reasons:[]};
+  saveDraft(); render();
+}
+function removeShot(i,j){ draft.holes[i].shots.splice(j,1); saveDraft(); render(); }
+function saveRound(){
+  if(!draft.courseId){ alert('Choose a course first.'); return; }
+  if(!roundShots(draft).length){ alert('Add at least one shot before saving.'); return; }
+  const r={...draft,id:draft.id||uid('r'),score:draft.score?+draft.score:''};
+  const ix=state.rounds.findIndex(x=>x.id===r.id);
+  if(ix>=0) state.rounds[ix]=r; else state.rounds.push(r);
+  persist(); clearDraft(); setTab('rounds');
+}
+function editRound(id){
+  const r=state.rounds.find(x=>x.id===id); if(!r) return;
+  draft=JSON.parse(JSON.stringify(r)); saveDraft(); setTab('entry');
+}
+function deleteRound(id){
+  if(!confirm('Delete this round? This cannot be undone.')) return;
+  state.rounds=state.rounds.filter(r=>r.id!==id);
+  state.deleted.push(id); persist(); render();
+}
+
+/* ================= rounds list ================= */
+let expandedRound=null;
+function renderRounds(main){
+  const rounds=[...state.rounds].sort((a,b)=>a.date>b.date?-1:1);
+  if(!rounds.length){
+    main.innerHTML=`<h2>Rounds</h2><div class="empty">No rounds yet. Head to “Enter round” after your next game.</div>`;
+    return;
+  }
+  main.innerHTML=`<h2>Rounds <span class="hint">(${rounds.length})</span></h2>
+  <div class="panel rounds-table" style="padding:0.25rem 0.5rem;overflow-x:auto">
+  <table><thead><tr>
+    <th>Date</th><th>Course</th><th>Tees</th><th>Score</th><th>Par</th><th>+/−</th><th>Quality</th><th>Shots</th><th>Conditions</th><th></th>
+  </tr></thead><tbody>
+  ${rounds.map(r=>{
+    const shots=roundShots(r), qi=qIndex(shots), tp=toPar(r), par=teePar(teeOf(r));
+    const c=courseById(r.courseId);
+    return `<tr class="clickable" onclick="expandedRound=expandedRound==='${r.id}'?null:'${r.id}';render()">
+      <td>${fmtDate(r.date)}</td>
+      <td>${c?esc(c.name):'?'}</td>
+      <td>${esc(r.teeName||'')}</td>
+      <td><b>${r.score||'—'}</b></td>
+      <td>${par||'—'}</td>
+      <td class="${tp>0?'topar-pos':(tp!==null?'topar-neg':'')}">${fmtToPar(tp)}</td>
+      <td><b>${qi===null?'—':qi}</b></td>
+      <td>${shots.length}</td>
+      <td class="hint">${r.conditions.join(', ')||'—'}</td>
+      <td onclick="event.stopPropagation()">
+        <button class="btn small secondary" onclick="editRound('${r.id}')">Edit</button>
+        <button class="btn small danger" onclick="deleteRound('${r.id}')">Delete</button>
+      </td>
+    </tr>
+    ${expandedRound===r.id?`<tr><td colspan="10" class="round-detail">${roundDetail(r)}</td></tr>`:''}`;
+  }).join('')}
+  </tbody></table></div>
+
+  <div class="round-cards">
+  ${rounds.map(r=>{
+    const shots=roundShots(r), qi=qIndex(shots), tp=toPar(r), par=teePar(teeOf(r));
+    const c=courseById(r.courseId);
+    return `<div class="round-card">
+      <div class="rc-top" onclick="expandedRound=expandedRound==='${r.id}'?null:'${r.id}';render()">
+        <span class="when">${fmtDate(r.date)}</span>
+        <span class="${tp>0?'topar-pos':(tp!==null?'topar-neg':'')}" style="font-weight:800;font-size:1.05rem">${fmtToPar(tp)}</span>
+      </div>
+      <div class="rc-course" onclick="expandedRound=expandedRound==='${r.id}'?null:'${r.id}';render()">
+        ${c?esc(c.name):'?'} · ${esc(r.teeName||'')} tees${par?' · par '+par:''}${r.conditions.length?' · '+r.conditions.join(', '):''}
+      </div>
+      <div class="rc-stats">
+        <span><b>${r.score||'—'}</b><small>score</small></span>
+        <span><b>${qi===null?'—':qi}</b><small>quality</small></span>
+        <span><b>${shots.length}</b><small>shots</small></span>
+      </div>
+      ${expandedRound===r.id?`<div class="round-detail" style="margin:0.4rem -0.9rem -0.8rem;border-radius:0 0 var(--radius) var(--radius)">${roundDetail(r)}</div>
+      <div class="rc-actions" style="margin-top:0.9rem">
+        <button class="btn small secondary" onclick="editRound('${r.id}')">Edit</button>
+        <button class="btn small danger" onclick="deleteRound('${r.id}')">Delete</button>
+      </div>`:''}
+    </div>`;
+  }).join('')}
+  </div>
+  <p class="hint">Quality is each round's shots averaged onto a 0–100 scale (all Terrible = 0, all Great = 100, all Ok = 50). Click a row to see the hole-by-hole card.</p>`;
+}
+function roundDetail(r){
+  const tee=teeOf(r);
+  const diff=differential(r);
+  return `${r.holes.map((h,i)=>h.shots.length?`
+    <div class="hole-line"><b>${i+1}</b>${tee?`<span class="hint">P${tee.pars[i]}</span>`:''}
+      ${h.shots.map(s=>`<span class="mini-chip q-${s.quality}">${TMAP[s.type].label}${s.reasons.length?' · '+s.reasons.map(x=>RMAP[x].label.replace('Course management','Mgmt')).join(', '):''}</span>`).join('')}
+    </div>`:'').join('')}
+  ${diff!==null?`<p class="hint" style="margin-top:0.5rem">Handicap differential vs rating/slope: <b>${diff}</b></p>`:''}`;
+}
+/* ================= insights ================= */
+let insFilter={course:'all',cond:'all',range:'all'};
+function filteredRounds(){
+  let rs=sortedRounds();
+  if(insFilter.course!=='all') rs=rs.filter(r=>r.courseId===insFilter.course);
+  if(insFilter.cond!=='all') rs=rs.filter(r=>r.conditions.includes(insFilter.cond));
+  if(insFilter.range==='5') rs=rs.slice(-5);
+  if(insFilter.range==='10') rs=rs.slice(-10);
+  if(insFilter.range==='year') rs=rs.filter(r=>r.date>=new Date().getFullYear()+'-01-01');
+  return rs;
+}
+function renderInsights(main){
+  const rs=filteredRounds();
+  const shots=rs.flatMap(r=>roundShots(r).map(s=>({...s,round:r})));
+  if(!shots.length){
+    main.innerHTML=`<h2>Insights</h2><div class="empty">Log a round and your game summary will appear here.</div>`;
+    return;
+  }
+  // headline stats
+  const qi=qIndex(shots);
+  const scored=rs.filter(r=>toPar(r)!==null);
+  const avgToPar=scored.length? scored.reduce((a,r)=>a+toPar(r),0)/scored.length : null;
+  // per-type means (n>=5 for callouts)
+  const byType=TYPES.map(t=>{
+    const s=shots.filter(x=>x.type===t.id);
+    return {t,n:s.length,mean:meanQ(s)};
+  }).filter(x=>x.n>0);
+  const eligible=byType.filter(x=>x.n>=5);
+  const best=[...eligible].sort((a,b)=>b.mean-a.mean)[0];
+  const worst=[...eligible].sort((a,b)=>a.mean-b.mean)[0];
+  // fault reasons on poor shots
+  const poor=shots.filter(s=>QMAP[s.quality].val<0);
+  const faultCounts=REASONS.map(r=>({r,n:poor.filter(s=>s.reasons.includes(r.id)).length}));
+  const topFault=[...faultCounts].sort((a,b)=>b.n-a.n)[0];
+
+  main.innerHTML=`
+  <h2>Insights</h2>
+  <div class="form-row" style="margin-bottom:1rem">
+    <div class="field"><label>Course</label>
+      <select onchange="insFilter.course=this.value;render()">
+        <option value="all">All courses</option>
+        ${state.courses.map(c=>`<option value="${c.id}" ${insFilter.course===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}
+      </select></div>
+    <div class="field"><label>Rounds</label>
+      <select onchange="insFilter.range=this.value;render()">
+        <option value="all" ${insFilter.range==='all'?'selected':''}>All time</option>
+        <option value="10" ${insFilter.range==='10'?'selected':''}>Last 10</option>
+        <option value="5" ${insFilter.range==='5'?'selected':''}>Last 5</option>
+        <option value="year" ${insFilter.range==='year'?'selected':''}>This year</option>
+      </select></div>
+    <div class="field"><label>Conditions</label>
+      <select onchange="insFilter.cond=this.value;render()">
+        <option value="all">Any</option>
+        ${CONDITIONS.map(c=>`<option ${insFilter.cond===c?'selected':''}>${c}</option>`).join('')}
+      </select></div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat"><div class="v">${rs.length}</div><div class="l">rounds logged</div></div>
+    <div class="stat"><div class="v">${shots.length}</div><div class="l">shots graded</div></div>
+    <div class="stat"><div class="v">${qi}</div><div class="l">quality index (0–100)</div></div>
+    <div class="stat"><div class="v ${avgToPar>0?'topar-pos':''}">${avgToPar===null?'—':fmtToPar(Math.round(avgToPar*10)/10)}</div><div class="l">average vs par</div></div>
+  </div>
+
+  <div class="callouts">
+    ${best?`<div class="callout strength"><b>Strongest: ${best.t.label}</b>Averaging ${qLabelFor(best.mean)} across ${best.n} shots — keep doing what you're doing.</div>`:''}
+    ${worst&&worst!==best?`<div class="callout weakness"><b>Needs work: ${worst.t.label}</b>Averaging ${qLabelFor(worst.mean)} across ${worst.n} shots — your biggest scoring leak.</div>`:''}
+    ${topFault&&topFault.n?`<div class="callout weakness"><b>Most common fault: ${topFault.r.label}</b>Tagged on ${topFault.n} of your ${poor.length} poor shots (${Math.round(topFault.n/poor.length*100)}%). Worth a lesson or range session on this.</div>`:''}
+  </div>
+
+  <div class="chart-panel"><h3>Shot quality by shot type</h3>
+    <p class="hint">Every shot you've graded, stacked by quality. Long orange/red bars show where strokes are leaking.</p>
+    <div class="chart-wrap"><canvas id="ch-type"></canvas></div></div>
+  <div class="chart-panel"><h3>What's behind your shots</h3>
+    <p class="hint">Reasons you tagged, split between poor shots (Bad/Terrible) and strong shots (Good/Great).</p>
+    <div class="chart-wrap"><canvas id="ch-reason"></canvas></div></div>
+  <div class="chart-panel"><h3>Round by round</h3>
+    <p class="hint">Quality index (green, left axis) against score vs par (dark, right axis). If green climbs while the dark line falls, your self-assessment matches your scoring.</p>
+    <div class="chart-wrap"><canvas id="ch-trend"></canvas></div></div>
+  <div class="chart-panel"><h3>How conditions affect you</h3>
+    <p class="hint">Average quality index and score vs par for rounds tagged with each condition.</p>
+    <div id="cond-wrap" class="chart-wrap"><canvas id="ch-cond"></canvas></div></div>`;
+
+  drawTypeChart(shots);
+  drawReasonChart(shots);
+  drawTrendChart(rs);
+  drawCondChart();
+}
+function qLabelFor(mean){
+  if(mean===null) return '—';
+  if(mean>=1.5) return 'Great';
+  if(mean>=0.5) return 'Good';
+  if(mean>=-0.5) return 'Ok';
+  if(mean>=-1.5) return 'Bad';
+  return 'Terrible';
+}
+const chartFont={family:'Archivo',size:12};
+function baseOpts(extra){
+  return Object.assign({responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{font:chartFont,boxWidth:12}}},
+  },extra||{});
+}
+function drawTypeChart(shots){
+  const labels=TYPES.filter(t=>shots.some(s=>s.type===t.id)).map(t=>t.label);
+  const ids=TYPES.filter(t=>shots.some(s=>s.type===t.id)).map(t=>t.id);
+  const ds=QUALITIES.map(q=>({
+    label:q.label,
+    data:ids.map(id=>shots.filter(s=>s.type===id&&s.quality===q.id).length),
+    backgroundColor:QCOLORS[q.id],
+  }));
+  charts.push(new Chart(document.getElementById('ch-type'),{
+    type:'bar',
+    data:{labels,datasets:ds},
+    options:baseOpts({indexAxis:'y',
+      scales:{x:{stacked:true,ticks:{font:chartFont,precision:0}},y:{stacked:true,ticks:{font:chartFont}}}})
+  }));
+}
+function drawReasonChart(shots){
+  const poor=shots.filter(s=>QMAP[s.quality].val<0);
+  const strong=shots.filter(s=>QMAP[s.quality].val>0);
+  charts.push(new Chart(document.getElementById('ch-reason'),{
+    type:'bar',
+    data:{labels:REASONS.map(r=>r.label),datasets:[
+      {label:'On poor shots',data:REASONS.map(r=>poor.filter(s=>s.reasons.includes(r.id)).length),backgroundColor:'#BF6B3F'},
+      {label:'On strong shots',data:REASONS.map(r=>strong.filter(s=>s.reasons.includes(r.id)).length),backgroundColor:'#6FA25C'},
+    ]},
+    options:baseOpts({scales:{x:{ticks:{font:chartFont}},y:{ticks:{font:chartFont,precision:0},beginAtZero:true}}})
+  }));
+}
+function drawTrendChart(rs){
+  const labels=rs.map(r=>fmtDate(r.date));
+  const qis=rs.map(r=>qIndex(roundShots(r)));
+  const tps=rs.map(r=>toPar(r));
+  charts.push(new Chart(document.getElementById('ch-trend'),{
+    type:'line',
+    data:{labels,datasets:[
+      {label:'Quality index',data:qis,borderColor:'#2F6B45',backgroundColor:'#2F6B45',yAxisID:'y',tension:0.25},
+      {label:'Score vs par',data:tps,borderColor:'#1C2A21',backgroundColor:'#1C2A21',yAxisID:'y2',borderDash:[5,4],tension:0.25,spanGaps:true},
+    ]},
+    options:baseOpts({scales:{
+      x:{ticks:{font:chartFont}},
+      y:{min:0,max:100,title:{display:true,text:'Quality (0–100)',font:chartFont},ticks:{font:chartFont}},
+      y2:{position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'Over/under par',font:chartFont},ticks:{font:chartFont}},
+    }})
+  }));
+}
+function drawCondChart(){
+  // conditions analysis always uses all rounds matching course/range (not the condition filter)
+  let rs=sortedRounds();
+  if(insFilter.course!=='all') rs=rs.filter(r=>r.courseId===insFilter.course);
+  const rows=CONDITIONS.map(c=>{
+    const sub=rs.filter(r=>r.conditions.includes(c));
+    if(!sub.length) return null;
+    const qis=sub.map(r=>qIndex(roundShots(r))).filter(v=>v!==null);
+    const tps=sub.map(r=>toPar(r)).filter(v=>v!==null);
+    return {c,n:sub.length,
+      qi:qis.length? Math.round(qis.reduce((a,b)=>a+b,0)/qis.length):null,
+      tp:tps.length? Math.round(tps.reduce((a,b)=>a+b,0)/tps.length*10)/10:null};
+  }).filter(Boolean);
+  const wrap=document.getElementById('cond-wrap');
+  if(!rows.length){
+    wrap.outerHTML='<div class="empty">Tag conditions (windy, rainy, hot…) when entering rounds and this comparison will build up.</div>';
+    return;
+  }
+  charts.push(new Chart(document.getElementById('ch-cond'),{
+    type:'bar',
+    data:{labels:rows.map(r=>r.c+' ('+r.n+')'),datasets:[
+      {label:'Avg quality index',data:rows.map(r=>r.qi),backgroundColor:'#2F6B45',yAxisID:'y'},
+      {label:'Avg score vs par',data:rows.map(r=>r.tp),backgroundColor:'#1C2A21',yAxisID:'y2'},
+    ]},
+    options:baseOpts({scales:{
+      x:{ticks:{font:chartFont}},
+      y:{min:0,max:100,title:{display:true,text:'Quality',font:chartFont},ticks:{font:chartFont}},
+      y2:{position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'vs par',font:chartFont},ticks:{font:chartFont}},
+    }})
+  }));
+}
+
+/* ================= courses ================= */
+let courseEdit=null;
+function startNewCourse(){
+  courseEdit={id:null,name:'',tees:[blankTee('White')]};
+  render();
+}
+function blankTee(name){
+  return {name:name||'',pars:Array(18).fill(4),si:Array(18).fill(''),rating:'',slope:''};
+}
+function renderCourses(main){
+  main.innerHTML=`<h2>Courses</h2>
+  ${courseEdit? courseForm() : `
+    <button class="btn" onclick="startNewCourse()" style="margin-bottom:1rem">+ Add a course</button>
+    ${state.courses.map(c=>`
+      <div class="course-card">
+        <header>
+          <h3>${esc(c.name)}</h3>
+          <span>
+            <button class="btn small secondary" onclick="editCourse('${c.id}')">Edit</button>
+            <button class="btn small danger" onclick="deleteCourse('${c.id}')">Delete</button>
+          </span>
+        </header>
+        ${c.tees.map(t=>`<div class="tee-line">
+          <span><b>${esc(t.name)}</b> tees</span>
+          <span>Par <b>${teePar(t)}</b></span>
+          <span>Rating <b>${t.rating||'—'}</b></span>
+          <span>Slope <b>${t.slope||'—'}</b></span>
+        </div>`).join('')}
+      </div>`).join('')||'<div class="empty">No courses yet — add your home club to get started.</div>'}
+  `}`;
+}
+function editCourse(id){
+  courseEdit=JSON.parse(JSON.stringify(courseById(id)));
+  courseEdit.tees.forEach(t=>{ if(!t.si) t.si=Array(18).fill(''); });
+  render();
+}
+function deleteCourse(id){
+  if(state.rounds.some(r=>r.courseId===id)){
+    alert('You have rounds saved at this course — delete those first.'); return;
+  }
+  if(!confirm('Delete this course?')) return;
+  state.courses=state.courses.filter(c=>c.id!==id);
+  state.deleted.push(id); persist(); render();
+}
+function courseForm(){
+  return `<div class="panel">
+    <div class="field" style="max-width:420px"><label>Course name</label>
+      <input value="${esc(courseEdit.name)}" placeholder="e.g. Stoke by Nayland — Constable"
+        oninput="courseEdit.name=this.value"></div>
+    ${courseEdit.tees.map((t,ti)=>`
+      <div style="border-top:1px solid var(--line-soft);margin-top:1rem;padding-top:0.9rem">
+        <div class="form-row">
+          <div class="field"><label>Tee set</label>
+            <input style="width:8rem" value="${esc(t.name)}" placeholder="White" oninput="courseEdit.tees[${ti}].name=this.value"></div>
+          <div class="field"><label>Course rating</label>
+            <input type="number" step="0.1" style="width:6.5rem" value="${t.rating}" placeholder="70.8"
+              oninput="courseEdit.tees[${ti}].rating=this.value?+this.value:''"></div>
+          <div class="field"><label>Slope rating</label>
+            <input type="number" style="width:6.5rem" value="${t.slope}" placeholder="133"
+              oninput="courseEdit.tees[${ti}].slope=this.value?+this.value:''"></div>
+          <div class="spacer"></div>
+          ${courseEdit.tees.length>1?`<button class="btn small danger" onclick="courseEdit.tees.splice(${ti},1);render()">Remove tee set</button>`:''}
+        </div>
+        <p class="hint" style="margin-top:0.6rem">Par for each hole</p>
+        <div class="par-grid">
+          ${t.pars.map((p,hi)=>`<div class="field"><label>${hi+1}</label>
+            <input type="number" min="3" max="6" value="${p}" oninput="parInput(${ti},${hi},this.value)"></div>`).join('')}
+        </div>
+        <div class="par-total">Total par: <span id="ptotal-${ti}">${teePar(t)}</span></div>
+        <p class="hint" style="margin-top:0.6rem">Stroke index (optional)</p>
+        <div class="par-grid">
+          ${t.si.map((s,hi)=>`<div class="field"><label>${hi+1}</label>
+            <input type="number" min="1" max="18" value="${s}" oninput="courseEdit.tees[${ti}].si[${hi}]=this.value?+this.value:''"></div>`).join('')}
+        </div>
+      </div>`).join('')}
+    <div style="display:flex;gap:0.6rem;margin-top:1.1rem;flex-wrap:wrap">
+      <button class="btn secondary" onclick="courseEdit.tees.push(blankTee(''));render()">+ Add another tee set</button>
+      <div class="spacer"></div>
+      <button class="btn secondary" onclick="courseEdit=null;render()">Cancel</button>
+      <button class="btn" onclick="saveCourse()">Save course</button>
+    </div>
+  </div>`;
+}
+function parInput(ti,hi,v){
+  courseEdit.tees[ti].pars[hi]=v?+v:0;
+  document.getElementById('ptotal-'+ti).textContent=teePar(courseEdit.tees[ti]);
+}
+function saveCourse(){
+  if(!courseEdit.name.trim()){ alert('Give the course a name.'); return; }
+  if(courseEdit.tees.some(t=>!t.name.trim())){ alert('Every tee set needs a name (e.g. White).'); return; }
+  const c={...courseEdit,id:courseEdit.id||uid('c'),name:courseEdit.name.trim()};
+  const ix=state.courses.findIndex(x=>x.id===c.id);
+  if(ix>=0) state.courses[ix]=c; else state.courses.push(c);
+  persist(); courseEdit=null;
+  if(draft&&!draft.id&&!roundShots(draft).length){ draft.courseId=c.id; draft.teeName=c.tees[0].name; saveDraft(); }
+  render();
+}
+
+render();
+loadRepoDB();
+</script>
+</body>
+</html>

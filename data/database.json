@@ -1,0 +1,557 @@
+{
+  "app": "shot-ledger",
+  "exported": "2026-09-13T08:52:30.998Z",
+  "courses": [
+    {
+      "id": "c-gainsborough",
+      "name": "Stoke by Nayland — Gainsborough",
+      "tees": [
+        {
+          "name": "White",
+          "pars": [
+            4,
+            5,
+            3,
+            4,
+            5,
+            4,
+            3,
+            4,
+            3,
+            4,
+            3,
+            4,
+            4,
+            5,
+            4,
+            5,
+            4,
+            3
+          ],
+          "si": [
+            9,
+            5,
+            17,
+            1,
+            13,
+            3,
+            15,
+            7,
+            11,
+            2,
+            4,
+            18,
+            6,
+            16,
+            10,
+            12,
+            14,
+            8
+          ],
+          "rating": 70.8,
+          "slope": 133
+        }
+      ]
+    }
+  ],
+  "rounds": [
+    {
+      "id": "r-seed-1",
+      "date": "2026-09-12",
+      "courseId": "c-gainsborough",
+      "teeName": "White",
+      "score": 79,
+      "conditions": [],
+      "notes": "",
+      "holes": [
+        {
+          "shots": [
+            {
+              "type": "tee",
+              "quality": "ok",
+              "reasons": [
+                "contact"
+              ]
+            },
+            {
+              "type": "approach",
+              "quality": "bad",
+              "reasons": [
+                "direction"
+              ]
+            },
+            {
+              "type": "chip",
+              "quality": "good",
+              "reasons": []
+            },
+            {
+              "type": "putt",
+              "quality": "good",
+              "reasons": []
+            }
+          ]
+        },
+        {
+          "shots": [
+            {
+              "type": "tee",
+              "quality": "ok",
+              "reasons": [
+                "contact"
+              ]
+            },
+            {
+              "type": "recovery",
+              "quality": "ok",
+              "reasons": []
+            },
+            {
+              "type": "approach",
+              "quality": "bad",
+              "reasons": [
+                "direction"
+              ]
+            },
+            {
+              "type": "bunker",
+              "quality": "bad",
+              "reasons": [
+                "flight"
+              ]
+            },
+            {
+              "type": "putt",
+              "quality": "ok",
+              "reasons": []
+            }
+          ]
+        },
+        {
+          "shots": [
+            {
+              "type": "tee",
+              "quality": "good",
+              "reasons": [
+                "contact",
+                "direction"
+              ]
+            },
+            {
+              "type": "putt",
+              "quality": "good",
+              "reasons": []
+            }
+          ]
+        },
+        {
+          "shots": [
+            {
+              "type": "tee",
+              "quality": "bad",
+              "reasons": [
+                "direction"
+              ]
+            },
+            {
+              "type": "recovery",
+              "quality": "good",
+              "reasons": []
+            },
+            {
+              "type": "approach",
+              "quality": "good",
+              "reasons": [
+                "contact",
+                "flight",
+                "direction"
+              ]
+            },
+            {
+              "type": "putt",
+              "quality": "ok",
+              "reasons": []
+            }
+          ]
+        },
+        {
+          "shots": [
+            {
+              "type": "tee",
+              "quality": "bad",
+              "reasons": [
+                "direction",
+                "contact"
+              ]
+            },
+            {
+              "type": "approach",
+              "quality": "great",
+              "reasons": [
+                "contact",
+                "direction",
+                "flight"
+              ]
+            },
+            {
+              "type": "chip",
+              "quality": "good",
+              "reasons": []
+            },
+            {
+              "type": "putt",
+              "quality": "good",
+              "reasons": []
+            }
+          ]
+        },
+        {
+          "shots": [
+            {
+              "type": "tee",
+              "quality": "good",
+              "reasons": [
+                "contact",
+                "direction",
+                "flight"
+              ]
+            },
+            {
+              "type": "approach",
+              "quality": "ok",
+              "reasons": [
+                "contact",
+                "management"
+              ]
+            },
+            {
+              "type": "chip",
+              "quality": "ok",
+              "reasons": []
+            },
+            {
+              "type": "putt",
+              "quality": "good",
+              "reasons": []
+            }
+          ]
+        },
+        {
+          "shots": [
+            {
+              "type": "tee",
+              "quality": "terrible",
+              "reasons": [
+                "contact"
+              ]
+            },
+            {
+              "type": "putt",
+              "quality": "ok",
+              "reasons": []
+            }
+          ]
+        },
+        {
+          "shots": [
+            {
+              "type": "tee",
+              "quality": "ok",
+              "reasons": [
+                "management",
+                "direction"
+              ]
+            },
+            {
+              "type": "bunker",
+              "quality": "good",
+              "reasons": [
+                "contact",
+                "management"
+              ]
+            },
+            {
+              "type": "chip",
+              "quality": "bad",
+              "reasons": [
+                "direction"
+              ]
+            },
+            {
+              "type": "putt",
+              "quality": "bad",
+              "reasons": []
+            }
+          ]
+        },
+        {
+          "shots": [
+            {
+              "type": "tee",
+              "quality": "ok",
+              "reasons": [
+                "contact",
+                "flight"
+              ]
+            },
+            {
+              "type": "chip",
+              "quality": "good",
+              "reasons": []
+            }
+          ]
+        },
+        {
+          "shots": [
+            {
+              "type": "tee",
+              "quality": "good",
+              "reasons": [
+                "contact"
+              ]
+            },
+            {
+              "type": "approach",
+              "quality": "great",
+              "reasons": [
+                "contact",
+                "flight",
+                "direction"
+              ]
+            }
+          ]
+        },
+        {
+          "shots": [
+            {
+              "type": "tee",
+              "quality": "bad",
+              "reasons": [
+                "contact",
+                "direction"
+              ]
+            },
+            {
+              "type": "bunker",
+              "quality": "good",
+              "reasons": []
+            },
+            {
+              "type": "putt",
+              "quality": "bad",
+              "reasons": []
+            }
+          ]
+        },
+        {
+          "shots": [
+            {
+              "type": "tee",
+              "quality": "terrible",
+              "reasons": [
+                "contact"
+              ]
+            },
+            {
+              "type": "recovery",
+              "quality": "bad",
+              "reasons": [
+                "management",
+                "contact",
+                "flight"
+              ]
+            },
+            {
+              "type": "putt",
+              "quality": "bad",
+              "reasons": []
+            }
+          ]
+        },
+        {
+          "shots": [
+            {
+              "type": "tee",
+              "quality": "bad",
+              "reasons": [
+                "direction"
+              ]
+            },
+            {
+              "type": "approach",
+              "quality": "good",
+              "reasons": [
+                "contact",
+                "management",
+                "flight"
+              ]
+            },
+            {
+              "type": "putt",
+              "quality": "good",
+              "reasons": []
+            }
+          ]
+        },
+        {
+          "shots": [
+            {
+              "type": "tee",
+              "quality": "good",
+              "reasons": [
+                "contact"
+              ]
+            },
+            {
+              "type": "approach",
+              "quality": "great",
+              "reasons": [
+                "contact",
+                "flight"
+              ]
+            },
+            {
+              "type": "chip",
+              "quality": "bad",
+              "reasons": [
+                "contact",
+                "flight"
+              ]
+            },
+            {
+              "type": "putt",
+              "quality": "ok",
+              "reasons": []
+            }
+          ]
+        },
+        {
+          "shots": [
+            {
+              "type": "tee",
+              "quality": "terrible",
+              "reasons": [
+                "contact",
+                "management",
+                "flight"
+              ]
+            },
+            {
+              "type": "approach",
+              "quality": "good",
+              "reasons": [
+                "contact"
+              ]
+            },
+            {
+              "type": "pitch",
+              "quality": "great",
+              "reasons": []
+            },
+            {
+              "type": "putt",
+              "quality": "good",
+              "reasons": []
+            }
+          ]
+        },
+        {
+          "shots": [
+            {
+              "type": "tee",
+              "quality": "bad",
+              "reasons": [
+                "direction"
+              ]
+            },
+            {
+              "type": "approach",
+              "quality": "great",
+              "reasons": [
+                "contact",
+                "flight",
+                "management"
+              ]
+            },
+            {
+              "type": "chip",
+              "quality": "terrible",
+              "reasons": [
+                "contact"
+              ]
+            },
+            {
+              "type": "putt",
+              "quality": "bad",
+              "reasons": []
+            },
+            {
+              "type": "putt",
+              "quality": "bad",
+              "reasons": []
+            }
+          ]
+        },
+        {
+          "shots": [
+            {
+              "type": "tee",
+              "quality": "good",
+              "reasons": [
+                "contact"
+              ]
+            },
+            {
+              "type": "pitch",
+              "quality": "terrible",
+              "reasons": [
+                "contact"
+              ]
+            },
+            {
+              "type": "chip",
+              "quality": "good",
+              "reasons": [
+                "contact"
+              ]
+            },
+            {
+              "type": "putt",
+              "quality": "great",
+              "reasons": []
+            }
+          ]
+        },
+        {
+          "shots": [
+            {
+              "type": "tee",
+              "quality": "bad",
+              "reasons": [
+                "direction",
+                "flight"
+              ]
+            },
+            {
+              "type": "chip",
+              "quality": "bad",
+              "reasons": [
+                "contact"
+              ]
+            },
+            {
+              "type": "putt",
+              "quality": "bad",
+              "reasons": []
+            },
+            {
+              "type": "putt",
+              "quality": "good",
+              "reasons": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
