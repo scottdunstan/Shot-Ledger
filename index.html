@@ -158,6 +158,9 @@ th{
 td{border-bottom:1px solid var(--line-soft);padding:0.5rem 0.55rem;vertical-align:middle}
 tr.clickable{cursor:pointer}
 tr.clickable:hover td{background:var(--panel-2)}
+.qkey{display:inline-flex;gap:0.2rem;vertical-align:middle}
+.qk{display:inline-block;min-width:1.55rem;text-align:center;border-radius:3px;font-size:0.75rem;font-weight:700;padding:0.12rem 0.25rem}
+.qk.zero{opacity:0.3}
 .topar-pos{color:var(--red);font-weight:700}
 .topar-neg{color:var(--q-great);font-weight:700}
 .round-detail{background:var(--panel-2);padding:0.75rem 0.9rem}
@@ -490,6 +493,30 @@ function streakInfo(r){
 }
 function spanTxt(b){ return b.len? (b.start===b.end?'hole '+b.start:'holes '+b.start+'\u2013'+b.end):''; }
 function penCount(r){ return roundShots(r).filter(sh=>sh.penalty).length; }
+function qKeyHTML(r){
+  const shots=roundShots(r);
+  return '<span class="qkey">'+QUALITIES.map(q=>{
+    const n=shots.filter(sh=>sh.quality===q.id).length;
+    return '<span class="qk q-'+q.id+(n?'':' zero')+'" title="'+q.label+'">'+n+'</span>';
+  }).join('')+'</span>';
+}
+function typeMeans(r){
+  const shots=roundShots(r);
+  return TYPES.map(t=>{
+    const s=shots.filter(x=>x.type===t.id);
+    return s.length? {t,m:meanQ(s),n:s.length} : null;
+  }).filter(Boolean);
+}
+function bestType(r){
+  let best=null;
+  typeMeans(r).forEach(x=>{ if(!best||x.m>best.m||(x.m===best.m&&x.n>best.n)) best=x; });
+  return best;
+}
+function worstType(r){
+  let worst=null;
+  typeMeans(r).forEach(x=>{ if(!worst||x.m<worst.m||(x.m===worst.m&&x.n>worst.n)) worst=x; });
+  return worst;
+}
 function chipMeta(sh){
   const bits=[];
   if(sh.club) bits.push(CMAP[sh.club].label);
@@ -707,24 +734,24 @@ function renderRounds(main){
   main.innerHTML=`<h2>Rounds <span class="hint">(${rounds.length})</span></h2>
   <div class="panel rounds-table" style="padding:0.25rem 0.5rem;overflow-x:auto">
   <table><thead><tr>
-    <th>Date</th><th>Course</th><th>Tees</th><th>Score</th><th>Par</th><th>+/−</th><th>Quality</th><th>Shots</th><th>Streaks +/−</th><th>Pen</th><th>Conditions</th><th></th>
+    <th>Date</th><th>Course</th><th>Tees</th><th>Score</th><th>+/−</th><th>Quality</th><th title="Great / Good / Ok / Bad / Terrible">Shot mix</th><th>Pen</th><th>Conditions</th><th>Best</th><th>Worst</th><th></th>
   </tr></thead><tbody>
   ${rounds.map(r=>{
-    const shots=roundShots(r), qi=qIndex(shots), tp=toPar(r), par=teePar(teeOf(r));
-    const st=streakInfo(r);
+    const shots=roundShots(r), qi=qIndex(shots), tp=toPar(r);
+    const bt=bestType(r), wt=worstType(r);
     const c=courseById(r.courseId);
     return `<tr class="clickable" onclick="expandedRound=expandedRound==='${r.id}'?null:'${r.id}';render()">
       <td>${fmtDate(r.date)}${r.notes?'<span class="pen-mark" title="Has a journal entry">✎</span>':''}</td>
       <td>${c?esc(c.name):'?'}</td>
       <td>${esc(r.teeName||'')}</td>
       <td><b>${r.score||'—'}</b></td>
-      <td>${par||'—'}</td>
       <td class="${tp>0?'topar-pos':(tp!==null?'topar-neg':'')}">${fmtToPar(tp)}</td>
       <td><b>${qi===null?'—':qi}</b></td>
-      <td>${shots.length}</td>
-      <td><span style="color:var(--q-great);font-weight:700">${st.bestHot.len}</span> / <span style="color:var(--q-bad);font-weight:700">${st.bestCold.len}</span></td>
+      <td>${qKeyHTML(r)}</td>
       <td>${penCount(r)?'<span style="color:var(--red);font-weight:700">'+penCount(r)+'</span>':'0'}</td>
       <td class="hint">${r.conditions.join(', ')||'—'}</td>
+      <td style="color:var(--q-great);font-weight:600">${bt?bt.t.label:'—'}</td>
+      <td style="color:var(--q-bad);font-weight:600">${wt&&(!bt||wt.t.id!==bt.t.id)?wt.t.label:'—'}</td>
       <td onclick="event.stopPropagation()">
         <button class="btn small secondary" onclick="editRound('${r.id}')">Edit</button>
         <button class="btn small danger" onclick="deleteRound('${r.id}')">Delete</button>
@@ -737,7 +764,7 @@ function renderRounds(main){
   <div class="round-cards">
   ${rounds.map(r=>{
     const shots=roundShots(r), qi=qIndex(shots), tp=toPar(r), par=teePar(teeOf(r));
-    const st=streakInfo(r);
+    const bt=bestType(r), wt=worstType(r);
     const c=courseById(r.courseId);
     return `<div class="round-card">
       <div class="rc-top" onclick="expandedRound=expandedRound==='${r.id}'?null:'${r.id}';render()">
@@ -751,11 +778,11 @@ function renderRounds(main){
       <div class="rc-stats">
         <span><b>${r.score||'—'}</b><small>score</small></span>
         <span><b>${qi===null?'—':qi}</b><small>quality</small></span>
-        <span><b>${shots.length}</b><small>shots</small></span>
-        <span><b style="color:var(--q-great)">${st.bestHot.len}</b><small>hot streak</small></span>
-        <span><b style="color:var(--q-bad)">${st.bestCold.len}</b><small>cold streak</small></span>
         <span><b style="color:var(--red)">${penCount(r)}</b><small>penalties</small></span>
+        <span><b style="font-size:0.95rem;color:var(--q-great)">${bt?bt.t.label:'—'}</b><small>best</small></span>
+        <span><b style="font-size:0.95rem;color:var(--q-bad)">${wt&&(!bt||wt.t.id!==bt.t.id)?wt.t.label:'—'}</b><small>worst</small></span>
       </div>
+      <div style="margin-top:0.15rem">${qKeyHTML(r)}</div>
       ${expandedRound===r.id?`<div class="round-detail" style="margin:0.4rem -0.9rem -0.8rem;border-radius:0 0 var(--radius) var(--radius)">${roundDetail(r)}</div>
       <div class="rc-actions" style="margin-top:0.9rem">
         <button class="btn small secondary" onclick="editRound('${r.id}')">Edit</button>
